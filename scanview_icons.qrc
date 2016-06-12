@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file>icons/connected.png</file>
+        <file>icons/directories.png</file>
+    </qresource>
+    <qresource prefix="/toolbars">
+        <file>icons/toolbars/select_all.png</file>
+        <file>icons/toolbars/save.png</file>
+        <file>icons/toolbars/clear_screen.png</file>
+        <file>icons/toolbars/update_firmware.png</file>
+        <file>icons/toolbars/restart_edison.png</file>
+        <file>icons/toolbars/get_log_file.png</file>
+        <file>icons/toolbars/disconnect.png</file>
+        <file>icons/toolbars/connect.png</file>
+        <file>icons/toolbars/delete_logs.png</file>
+    </qresource>
+</RCC>

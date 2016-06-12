@@ -13,187 +13,162 @@
 #include <QtWidgets/QAction>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QButtonGroup>
-#include <QtWidgets/QComboBox>
-#include <QtWidgets/QFormLayout>
-#include <QtWidgets/QGroupBox>
-#include <QtWidgets/QHBoxLayout>
+#include <QtWidgets/QDockWidget>
 #include <QtWidgets/QHeaderView>
-#include <QtWidgets/QLabel>
-#include <QtWidgets/QLineEdit>
 #include <QtWidgets/QMainWindow>
+#include <QtWidgets/QMenu>
 #include <QtWidgets/QMenuBar>
-#include <QtWidgets/QPlainTextEdit>
-#include <QtWidgets/QPushButton>
-#include <QtWidgets/QSpacerItem>
-#include <QtWidgets/QSpinBox>
 #include <QtWidgets/QStatusBar>
 #include <QtWidgets/QToolBar>
 #include <QtWidgets/QVBoxLayout>
 #include <QtWidgets/QWidget>
+#include <console_view.h>
 #include <mapview.h>
+#include <sensor_controls.h>
 
 QT_BEGIN_NAMESPACE
 
 class Ui_ScanView
 {
 public:
+    QAction *actionClose;
+    QAction *actionPreferences;
+    QAction *actionSave_Configuration;
+    QAction *actionClose_2;
+    QAction *actionNew_Configuration;
+    QAction *actionAbout_Scanview;
+    QAction *actionConnect;
+    QAction *actionDisconnect;
+    QAction *actionUpdateFirmware;
+    QAction *actionRestartCtrlmod;
+    QAction *actionGetLog;
+    QAction *actionRemoveLogs;
     QWidget *centralWidget;
-    QHBoxLayout *horizontalLayout_3;
-    QVBoxLayout *verticalLayout_3;
-    QGroupBox *groupBox;
     QVBoxLayout *verticalLayout;
-    QFormLayout *formLayout;
-    QLabel *label_2;
-    QLineEdit *m_address_le;
-    QLabel *label;
-    QSpinBox *m_port_sb;
-    QHBoxLayout *horizontalLayout;
-    QSpacerItem *horizontalSpacer;
-    QPushButton *m_listen_btn;
-    QPushButton *m_stop_btn;
-    QGroupBox *groupBox_2;
-    QVBoxLayout *verticalLayout_2;
-    QComboBox *m_command_cbox;
-    QHBoxLayout *horizontalLayout_2;
-    QSpacerItem *horizontalSpacer_2;
-    QPushButton *m_send_btn;
-    QPlainTextEdit *m_echo_pt;
     MapView *m_mapview;
     QMenuBar *menuBar;
+    QMenu *menuFile;
+    QMenu *menuTools;
+    QMenu *menuHelp;
     QToolBar *mainToolBar;
     QStatusBar *statusBar;
+    QDockWidget *m_sensor_dock;
+    sensor_controls *sensors;
+    QDockWidget *console_dock;
+    console_view *console;
 
     void setupUi(QMainWindow *ScanView)
     {
         if (ScanView->objectName().isEmpty())
             ScanView->setObjectName(QStringLiteral("ScanView"));
-        ScanView->resize(1024, 679);
+        ScanView->resize(1186, 679);
+        actionClose = new QAction(ScanView);
+        actionClose->setObjectName(QStringLiteral("actionClose"));
+        actionPreferences = new QAction(ScanView);
+        actionPreferences->setObjectName(QStringLiteral("actionPreferences"));
+        actionSave_Configuration = new QAction(ScanView);
+        actionSave_Configuration->setObjectName(QStringLiteral("actionSave_Configuration"));
+        actionClose_2 = new QAction(ScanView);
+        actionClose_2->setObjectName(QStringLiteral("actionClose_2"));
+        actionNew_Configuration = new QAction(ScanView);
+        actionNew_Configuration->setObjectName(QStringLiteral("actionNew_Configuration"));
+        actionAbout_Scanview = new QAction(ScanView);
+        actionAbout_Scanview->setObjectName(QStringLiteral("actionAbout_Scanview"));
+        actionConnect = new QAction(ScanView);
+        actionConnect->setObjectName(QStringLiteral("actionConnect"));
+        QIcon icon;
+        icon.addFile(QStringLiteral(":/toolbars/icons/toolbars/connect.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionConnect->setIcon(icon);
+        actionDisconnect = new QAction(ScanView);
+        actionDisconnect->setObjectName(QStringLiteral("actionDisconnect"));
+        QIcon icon1;
+        icon1.addFile(QStringLiteral(":/toolbars/icons/toolbars/disconnect.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionDisconnect->setIcon(icon1);
+        actionUpdateFirmware = new QAction(ScanView);
+        actionUpdateFirmware->setObjectName(QStringLiteral("actionUpdateFirmware"));
+        QIcon icon2;
+        icon2.addFile(QStringLiteral(":/toolbars/icons/toolbars/update_firmware.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionUpdateFirmware->setIcon(icon2);
+        actionRestartCtrlmod = new QAction(ScanView);
+        actionRestartCtrlmod->setObjectName(QStringLiteral("actionRestartCtrlmod"));
+        QIcon icon3;
+        icon3.addFile(QStringLiteral(":/toolbars/icons/toolbars/restart_edison.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionRestartCtrlmod->setIcon(icon3);
+        actionGetLog = new QAction(ScanView);
+        actionGetLog->setObjectName(QStringLiteral("actionGetLog"));
+        QIcon icon4;
+        icon4.addFile(QStringLiteral(":/toolbars/icons/toolbars/get_log_file.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionGetLog->setIcon(icon4);
+        actionRemoveLogs = new QAction(ScanView);
+        actionRemoveLogs->setObjectName(QStringLiteral("actionRemoveLogs"));
+        QIcon icon5;
+        icon5.addFile(QStringLiteral(":/toolbars/icons/toolbars/delete_logs.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionRemoveLogs->setIcon(icon5);
         centralWidget = new QWidget(ScanView);
         centralWidget->setObjectName(QStringLiteral("centralWidget"));
-        horizontalLayout_3 = new QHBoxLayout(centralWidget);
-        horizontalLayout_3->setSpacing(6);
-        horizontalLayout_3->setContentsMargins(11, 11, 11, 11);
-        horizontalLayout_3->setObjectName(QStringLiteral("horizontalLayout_3"));
-        verticalLayout_3 = new QVBoxLayout();
-        verticalLayout_3->setSpacing(6);
-        verticalLayout_3->setObjectName(QStringLiteral("verticalLayout_3"));
-        groupBox = new QGroupBox(centralWidget);
-        groupBox->setObjectName(QStringLiteral("groupBox"));
-        verticalLayout = new QVBoxLayout(groupBox);
+        verticalLayout = new QVBoxLayout(centralWidget);
         verticalLayout->setSpacing(6);
         verticalLayout->setContentsMargins(11, 11, 11, 11);
         verticalLayout->setObjectName(QStringLiteral("verticalLayout"));
-        formLayout = new QFormLayout();
-        formLayout->setSpacing(6);
-        formLayout->setObjectName(QStringLiteral("formLayout"));
-        label_2 = new QLabel(groupBox);
-        label_2->setObjectName(QStringLiteral("label_2"));
-
-        formLayout->setWidget(0, QFormLayout::LabelRole, label_2);
-
-        m_address_le = new QLineEdit(groupBox);
-        m_address_le->setObjectName(QStringLiteral("m_address_le"));
-
-        formLayout->setWidget(0, QFormLayout::FieldRole, m_address_le);
-
-        label = new QLabel(groupBox);
-        label->setObjectName(QStringLiteral("label"));
-
-        formLayout->setWidget(1, QFormLayout::LabelRole, label);
-
-        m_port_sb = new QSpinBox(groupBox);
-        m_port_sb->setObjectName(QStringLiteral("m_port_sb"));
-        m_port_sb->setMaximum(16000);
-        m_port_sb->setValue(2345);
-
-        formLayout->setWidget(1, QFormLayout::FieldRole, m_port_sb);
-
-
-        verticalLayout->addLayout(formLayout);
-
-        horizontalLayout = new QHBoxLayout();
-        horizontalLayout->setSpacing(6);
-        horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
-        horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-        horizontalLayout->addItem(horizontalSpacer);
-
-        m_listen_btn = new QPushButton(groupBox);
-        m_listen_btn->setObjectName(QStringLiteral("m_listen_btn"));
-
-        horizontalLayout->addWidget(m_listen_btn);
-
-        m_stop_btn = new QPushButton(groupBox);
-        m_stop_btn->setObjectName(QStringLiteral("m_stop_btn"));
-
-        horizontalLayout->addWidget(m_stop_btn);
-
-
-        verticalLayout->addLayout(horizontalLayout);
-
-
-        verticalLayout_3->addWidget(groupBox);
-
-        groupBox_2 = new QGroupBox(centralWidget);
-        groupBox_2->setObjectName(QStringLiteral("groupBox_2"));
-        verticalLayout_2 = new QVBoxLayout(groupBox_2);
-        verticalLayout_2->setSpacing(6);
-        verticalLayout_2->setContentsMargins(11, 11, 11, 11);
-        verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
-        m_command_cbox = new QComboBox(groupBox_2);
-        m_command_cbox->setObjectName(QStringLiteral("m_command_cbox"));
-
-        verticalLayout_2->addWidget(m_command_cbox);
-
-        horizontalLayout_2 = new QHBoxLayout();
-        horizontalLayout_2->setSpacing(6);
-        horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
-        horizontalSpacer_2 = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-        horizontalLayout_2->addItem(horizontalSpacer_2);
-
-        m_send_btn = new QPushButton(groupBox_2);
-        m_send_btn->setObjectName(QStringLiteral("m_send_btn"));
-
-        horizontalLayout_2->addWidget(m_send_btn);
-
-
-        verticalLayout_2->addLayout(horizontalLayout_2);
-
-        m_echo_pt = new QPlainTextEdit(groupBox_2);
-        m_echo_pt->setObjectName(QStringLiteral("m_echo_pt"));
-        m_echo_pt->setReadOnly(true);
-
-        verticalLayout_2->addWidget(m_echo_pt);
-
-
-        verticalLayout_3->addWidget(groupBox_2);
-
-
-        horizontalLayout_3->addLayout(verticalLayout_3);
-
         m_mapview = new MapView(centralWidget);
         m_mapview->setObjectName(QStringLiteral("m_mapview"));
-        m_mapview->setMinimumSize(QSize(800, 600));
 
-        horizontalLayout_3->addWidget(m_mapview);
+        verticalLayout->addWidget(m_mapview);
 
         ScanView->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(ScanView);
         menuBar->setObjectName(QStringLiteral("menuBar"));
-        menuBar->setGeometry(QRect(0, 0, 1024, 22));
+        menuBar->setGeometry(QRect(0, 0, 1186, 22));
+        menuFile = new QMenu(menuBar);
+        menuFile->setObjectName(QStringLiteral("menuFile"));
+        menuTools = new QMenu(menuBar);
+        menuTools->setObjectName(QStringLiteral("menuTools"));
+        menuHelp = new QMenu(menuBar);
+        menuHelp->setObjectName(QStringLiteral("menuHelp"));
         ScanView->setMenuBar(menuBar);
         mainToolBar = new QToolBar(ScanView);
         mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
+        mainToolBar->setMovable(false);
+        mainToolBar->setIconSize(QSize(40, 24));
+        mainToolBar->setFloatable(false);
         ScanView->addToolBar(Qt::TopToolBarArea, mainToolBar);
         statusBar = new QStatusBar(ScanView);
         statusBar->setObjectName(QStringLiteral("statusBar"));
         ScanView->setStatusBar(statusBar);
+        m_sensor_dock = new QDockWidget(ScanView);
+        m_sensor_dock->setObjectName(QStringLiteral("m_sensor_dock"));
+        sensors = new sensor_controls();
+        sensors->setObjectName(QStringLiteral("sensors"));
+        m_sensor_dock->setWidget(sensors);
+        ScanView->addDockWidget(static_cast<Qt::DockWidgetArea>(1), m_sensor_dock);
+        console_dock = new QDockWidget(ScanView);
+        console_dock->setObjectName(QStringLiteral("console_dock"));
+        console = new console_view();
+        console->setObjectName(QStringLiteral("console"));
+        console_dock->setWidget(console);
+        ScanView->addDockWidget(static_cast<Qt::DockWidgetArea>(8), console_dock);
+
+        menuBar->addAction(menuFile->menuAction());
+        menuBar->addAction(menuTools->menuAction());
+        menuBar->addAction(menuHelp->menuAction());
+        menuFile->addAction(actionNew_Configuration);
+        menuFile->addAction(actionClose);
+        menuFile->addAction(actionSave_Configuration);
+        menuFile->addSeparator();
+        menuFile->addAction(actionClose_2);
+        menuTools->addSeparator();
+        menuTools->addAction(actionPreferences);
+        menuHelp->addAction(actionAbout_Scanview);
+        mainToolBar->addAction(actionConnect);
+        mainToolBar->addAction(actionDisconnect);
+        mainToolBar->addSeparator();
+        mainToolBar->addAction(actionRestartCtrlmod);
+        mainToolBar->addAction(actionUpdateFirmware);
+        mainToolBar->addSeparator();
+        mainToolBar->addAction(actionGetLog);
+        mainToolBar->addAction(actionRemoveLogs);
 
         retranslateUi(ScanView);
-        QObject::connect(m_listen_btn, SIGNAL(pressed()), ScanView, SLOT(onListen()));
-        QObject::connect(m_stop_btn, SIGNAL(pressed()), ScanView, SLOT(onStop()));
-        QObject::connect(m_send_btn, SIGNAL(pressed()), ScanView, SLOT(onSendCommand()));
 
         QMetaObject::connectSlotsByName(ScanView);
     } // setupUi
@@ -201,22 +176,41 @@ public:
     void retranslateUi(QMainWindow *ScanView)
     {
         ScanView->setWindowTitle(QApplication::translate("ScanView", "ScanView", 0));
-        groupBox->setTitle(QApplication::translate("ScanView", "Connection Settings", 0));
-        label_2->setText(QApplication::translate("ScanView", "Address", 0));
-        label->setText(QApplication::translate("ScanView", "Port", 0));
-        m_listen_btn->setText(QApplication::translate("ScanView", "Open", 0));
-        m_stop_btn->setText(QApplication::translate("ScanView", "Close", 0));
-        groupBox_2->setTitle(QApplication::translate("ScanView", "RPLidar Commands", 0));
-        m_command_cbox->clear();
-        m_command_cbox->insertItems(0, QStringList()
-         << QApplication::translate("ScanView", "Get Device Health", 0)
-         << QApplication::translate("ScanView", "Get Device Information", 0)
-         << QApplication::translate("ScanView", "Start Scan", 0)
-         << QApplication::translate("ScanView", "Force Scan", 0)
-         << QApplication::translate("ScanView", "Stop Scan", 0)
-         << QApplication::translate("ScanView", "Reset", 0)
-        );
-        m_send_btn->setText(QApplication::translate("ScanView", "Send", 0));
+        actionClose->setText(QApplication::translate("ScanView", "Open Configuration", 0));
+        actionPreferences->setText(QApplication::translate("ScanView", "Preferences", 0));
+        actionSave_Configuration->setText(QApplication::translate("ScanView", "Save Configuration", 0));
+        actionClose_2->setText(QApplication::translate("ScanView", "Close", 0));
+        actionNew_Configuration->setText(QApplication::translate("ScanView", "New Configuration", 0));
+        actionAbout_Scanview->setText(QApplication::translate("ScanView", "About Scanview", 0));
+        actionConnect->setText(QApplication::translate("ScanView", "connect", 0));
+#ifndef QT_NO_TOOLTIP
+        actionConnect->setToolTip(QApplication::translate("ScanView", "Connect to ctrlmod service running on the edison", 0));
+#endif // QT_NO_TOOLTIP
+        actionDisconnect->setText(QApplication::translate("ScanView", "disconnect", 0));
+#ifndef QT_NO_TOOLTIP
+        actionDisconnect->setToolTip(QApplication::translate("ScanView", "Disconnect from ctrlmod service", 0));
+#endif // QT_NO_TOOLTIP
+        actionUpdateFirmware->setText(QApplication::translate("ScanView", "UpdateFirmware", 0));
+#ifndef QT_NO_TOOLTIP
+        actionUpdateFirmware->setToolTip(QApplication::translate("ScanView", "Update edison firmware", 0));
+#endif // QT_NO_TOOLTIP
+        actionRestartCtrlmod->setText(QApplication::translate("ScanView", "RestartCtrlmod", 0));
+#ifndef QT_NO_TOOLTIP
+        actionRestartCtrlmod->setToolTip(QApplication::translate("ScanView", "Restart the ctrlmod service on the edison", 0));
+#endif // QT_NO_TOOLTIP
+        actionGetLog->setText(QApplication::translate("ScanView", "GetLog", 0));
+#ifndef QT_NO_TOOLTIP
+        actionGetLog->setToolTip(QApplication::translate("ScanView", "Get the log files from the edison", 0));
+#endif // QT_NO_TOOLTIP
+        actionRemoveLogs->setText(QApplication::translate("ScanView", "RemoveLogs", 0));
+#ifndef QT_NO_TOOLTIP
+        actionRemoveLogs->setToolTip(QApplication::translate("ScanView", "Delete log files on edison", 0));
+#endif // QT_NO_TOOLTIP
+        menuFile->setTitle(QApplication::translate("ScanView", "File", 0));
+        menuTools->setTitle(QApplication::translate("ScanView", "Tools", 0));
+        menuHelp->setTitle(QApplication::translate("ScanView", "Help", 0));
+        m_sensor_dock->setWindowTitle(QApplication::translate("ScanView", "Sensors", 0));
+        console_dock->setWindowTitle(QApplication::translate("ScanView", "Console", 0));
     } // retranslateUi
 
 };

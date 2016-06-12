@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1024</width>
+    <width>1186</width>
     <height>679</height>
    </rect>
   </property>
@@ -14,165 +14,9 @@
    <string>ScanView</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QHBoxLayout" name="horizontalLayout_3">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
-      <item>
-       <widget class="QGroupBox" name="groupBox">
-        <property name="title">
-         <string>Connection Settings</string>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout">
-         <item>
-          <layout class="QFormLayout" name="formLayout">
-           <item row="0" column="0">
-            <widget class="QLabel" name="label_2">
-             <property name="text">
-              <string>Address</string>
-             </property>
-            </widget>
-           </item>
-           <item row="0" column="1">
-            <widget class="QLineEdit" name="m_address_le"/>
-           </item>
-           <item row="1" column="0">
-            <widget class="QLabel" name="label">
-             <property name="text">
-              <string>Port</string>
-             </property>
-            </widget>
-           </item>
-           <item row="1" column="1">
-            <widget class="QSpinBox" name="m_port_sb">
-             <property name="maximum">
-              <number>16000</number>
-             </property>
-             <property name="value">
-              <number>2345</number>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout">
-           <item>
-            <spacer name="horizontalSpacer">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QPushButton" name="m_listen_btn">
-             <property name="text">
-              <string>Open</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="m_stop_btn">
-             <property name="text">
-              <string>Close</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="groupBox_2">
-        <property name="title">
-         <string>RPLidar Commands</string>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_2">
-         <item>
-          <widget class="QComboBox" name="m_command_cbox">
-           <item>
-            <property name="text">
-             <string>Get Device Health</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Get Device Information</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Start Scan</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Force Scan</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Stop Scan</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Reset</string>
-            </property>
-           </item>
-          </widget>
-         </item>
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <spacer name="horizontalSpacer_2">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-           <item>
-            <widget class="QPushButton" name="m_send_btn">
-             <property name="text">
-              <string>Send</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QPlainTextEdit" name="m_echo_pt">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="MapView" name="m_mapview" native="true">
-      <property name="minimumSize">
-       <size>
-        <width>800</width>
-        <height>600</height>
-       </size>
-      </property>
-     </widget>
+     <widget class="MapView" name="m_mapview" native="true"/>
     </item>
    </layout>
   </widget>
@@ -181,20 +25,186 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1024</width>
+     <width>1186</width>
      <height>22</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionNew_Configuration"/>
+    <addaction name="actionClose"/>
+    <addaction name="actionSave_Configuration"/>
+    <addaction name="separator"/>
+    <addaction name="actionClose_2"/>
+   </widget>
+   <widget class="QMenu" name="menuTools">
+    <property name="title">
+     <string>Tools</string>
+    </property>
+    <addaction name="separator"/>
+    <addaction name="actionPreferences"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+    <addaction name="actionAbout_Scanview"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="QToolBar" name="mainToolBar">
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>40</width>
+     <height>24</height>
+    </size>
+   </property>
+   <property name="floatable">
+    <bool>false</bool>
+   </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
    </attribute>
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionConnect"/>
+   <addaction name="actionDisconnect"/>
+   <addaction name="separator"/>
+   <addaction name="actionRestartCtrlmod"/>
+   <addaction name="actionUpdateFirmware"/>
+   <addaction name="separator"/>
+   <addaction name="actionGetLog"/>
+   <addaction name="actionRemoveLogs"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <widget class="QDockWidget" name="m_sensor_dock">
+   <property name="windowTitle">
+    <string>Sensors</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="sensor_controls" name="sensors"/>
+  </widget>
+  <widget class="QDockWidget" name="console_dock">
+   <property name="windowTitle">
+    <string>Console</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="console_view" name="console"/>
+  </widget>
+  <action name="actionClose">
+   <property name="text">
+    <string>Open Configuration</string>
+   </property>
+  </action>
+  <action name="actionPreferences">
+   <property name="text">
+    <string>Preferences</string>
+   </property>
+  </action>
+  <action name="actionSave_Configuration">
+   <property name="text">
+    <string>Save Configuration</string>
+   </property>
+  </action>
+  <action name="actionClose_2">
+   <property name="text">
+    <string>Close</string>
+   </property>
+  </action>
+  <action name="actionNew_Configuration">
+   <property name="text">
+    <string>New Configuration</string>
+   </property>
+  </action>
+  <action name="actionAbout_Scanview">
+   <property name="text">
+    <string>About Scanview</string>
+   </property>
+  </action>
+  <action name="actionConnect">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/connect.png</normaloff>:/toolbars/icons/toolbars/connect.png</iconset>
+   </property>
+   <property name="text">
+    <string>connect</string>
+   </property>
+   <property name="toolTip">
+    <string>Connect to ctrlmod service running on the edison</string>
+   </property>
+  </action>
+  <action name="actionDisconnect">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/disconnect.png</normaloff>:/toolbars/icons/toolbars/disconnect.png</iconset>
+   </property>
+   <property name="text">
+    <string>disconnect</string>
+   </property>
+   <property name="toolTip">
+    <string>Disconnect from ctrlmod service</string>
+   </property>
+  </action>
+  <action name="actionUpdateFirmware">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/update_firmware.png</normaloff>:/toolbars/icons/toolbars/update_firmware.png</iconset>
+   </property>
+   <property name="text">
+    <string>UpdateFirmware</string>
+   </property>
+   <property name="toolTip">
+    <string>Update edison firmware</string>
+   </property>
+  </action>
+  <action name="actionRestartCtrlmod">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/restart_edison.png</normaloff>:/toolbars/icons/toolbars/restart_edison.png</iconset>
+   </property>
+   <property name="text">
+    <string>RestartCtrlmod</string>
+   </property>
+   <property name="toolTip">
+    <string>Restart the ctrlmod service on the edison</string>
+   </property>
+  </action>
+  <action name="actionGetLog">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/get_log_file.png</normaloff>:/toolbars/icons/toolbars/get_log_file.png</iconset>
+   </property>
+   <property name="text">
+    <string>GetLog</string>
+   </property>
+   <property name="toolTip">
+    <string>Get the log files from the edison</string>
+   </property>
+  </action>
+  <action name="actionRemoveLogs">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/delete_logs.png</normaloff>:/toolbars/icons/toolbars/delete_logs.png</iconset>
+   </property>
+   <property name="text">
+    <string>RemoveLogs</string>
+   </property>
+   <property name="toolTip">
+    <string>Delete log files on edison</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
@@ -203,62 +213,33 @@
    <extends>QWidget</extends>
    <header location="global">mapview.h</header>
    <container>1</container>
+   <slots>
+    <slot>onSSHDisconnect()</slot>
+   </slots>
+  </customwidget>
+  <customwidget>
+   <class>sensor_controls</class>
+   <extends>QWidget</extends>
+   <header location="global">sensor_controls.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>console_view</class>
+   <extends>QWidget</extends>
+   <header location="global">console_view.h</header>
+   <container>1</container>
   </customwidget>
  </customwidgets>
- <resources/>
- <connections>
-  <connection>
-   <sender>m_listen_btn</sender>
-   <signal>pressed()</signal>
-   <receiver>ScanView</receiver>
-   <slot>onListen()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>181</x>
-     <y>171</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>246</x>
-     <y>370</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>m_stop_btn</sender>
-   <signal>pressed()</signal>
-   <receiver>ScanView</receiver>
-   <slot>onStop()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>267</x>
-     <y>171</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>363</x>
-     <y>379</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>m_send_btn</sender>
-   <signal>pressed()</signal>
-   <receiver>ScanView</receiver>
-   <slot>onSendCommand()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>181</x>
-     <y>279</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>212</x>
-     <y>296</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <resources>
+  <include location="../scanview_icons.qrc"/>
+ </resources>
+ <connections/>
  <slots>
-  <slot>onListen()</slot>
-  <slot>onStop()</slot>
+  <slot>onConnect()</slot>
+  <slot>onCloseConnection()</slot>
   <slot>onSendCommand()</slot>
+  <slot>onSendAltCommand()</slot>
+  <slot>onSSHConnect()</slot>
+  <slot>onSSHDisconnect()</slot>
  </slots>
 </ui>

@@ -4,8 +4,9 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    ScanView w;
-    w.show();
-
-    return a.exec();
+    ScanView * w = new ScanView;
+    w->show();
+    a.exec();
+    delete w;
+    return 0;
 }
