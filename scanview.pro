@@ -2,17 +2,18 @@ TARGET = scanview
 TEMPLATE = app
 QT += core gui network widgets
 CONFIG += debug_and_release
-ARCH = x86
 INCLUDEPATH += $$PWD/include
 UI_DIR = $$PWD/ui
 DESTDIR  = $$PWD/bin/$$ARCH
 
 unix {
 QMAKE_CXXFLAGS += -pipe -std=c++11
+ARCH = x64
 }
 
 win32 {
 message("Windows OS detected")
+ARCH = x86
 }
 
 Release:MOC_DIR = $$PWD/build/$$ARCH/Release/moc
@@ -26,6 +27,7 @@ build_pass:CONFIG(debug, debug|release)
 }
 
 LIBS += -L$$PWD/deps/libssh/lib/$$ARCH
+LIBS += -L$$PWD/deps/libssh/bin/$$ARCH
 LIBS += -lssh
 
 HEADERS += \
