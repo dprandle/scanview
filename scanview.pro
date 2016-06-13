@@ -2,9 +2,8 @@ TARGET = scanview
 TEMPLATE = app
 QT += core gui network widgets
 CONFIG += debug_and_release
-ARCH = x64
+ARCH = x86
 INCLUDEPATH += $$PWD/include
-INCLUDEPATH += $$PWD/../ctrlmod/include
 UI_DIR = $$PWD/ui
 DESTDIR  = $$PWD/bin/$$ARCH
 
@@ -14,7 +13,6 @@ QMAKE_CXXFLAGS += -pipe -std=c++11
 
 win32 {
 message("Windows OS detected")
-system(\"$$PWD/config.bat\" \"$$PWD\")
 }
 
 Release:MOC_DIR = $$PWD/build/$$ARCH/Release/moc
@@ -28,13 +26,11 @@ build_pass:CONFIG(debug, debug|release)
 }
 
 LIBS += -L$$PWD/deps/libssh/lib/$$ARCH
-LIBS += -L$$PWD/deps/libssh/bin/$$ARCH
 LIBS += -lssh
 
 HEADERS += \
     include/scanview.h \
     include/mapview.h \
-    ../ctrlmod/include/edrplidar_packets.h \
     include/preferences_dialog.h \
     include/sensor_controls.h \
     include/console_view.h
@@ -43,7 +39,6 @@ SOURCES += \
     src/scanview.cpp \
     src/mapview.cpp \
     src/main.cpp \
-    ../ctrlmod/src/edrplidar_packets.cpp \
     src/preferences_dialog.cpp \
     src/sensor_controls.cpp \
     src/console_view.cpp

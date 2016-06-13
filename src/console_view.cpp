@@ -1,4 +1,4 @@
-#include <include/console_view.h>
+#include <console_view.h>
 #include <ui_console_view.h>
 #include <QFileDialog>
 #include <QFile>

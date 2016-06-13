@@ -1,4 +1,4 @@
-#include <include/sensor_controls.h>
+#include <sensor_controls.h>
 #include <ui_sensor_controls.h>
 
 sensor_controls::sensor_controls(QWidget *parent) :

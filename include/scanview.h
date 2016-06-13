@@ -2,10 +2,13 @@
 #define SCANVIEW_H
 
 #include <QMainWindow>
-#include <unordered_map>
 #include <QAbstractSocket>
+
+
 #include <libssh/libssh.h>
+#include <unordered_map>
 #include <ui_console_view.h>
+#include <stdint.h>
 
 #define cprint(str) m_ui->console->ui->m_echo_pt->appendPlainText(str)
 
@@ -14,7 +17,135 @@
 #define READ_BUF_SIZE 20024
 #define COMMAND_BYTE_SIZE 72
 
-class data_packet;
+
+struct data_packet
+{
+    data_packet() {}
+    virtual ~data_packet() {}
+    virtual std::string toString()=0;
+    virtual std::string type()=0;
+    virtual uint32_t size()=0;
+    virtual uint8_t & operator[](uint32_t index)=0;
+    virtual uint8_t * dataptr()=0;
+};
+
+struct scan_data_packet : public data_packet
+{
+    scan_data_packet();
+
+    virtual std::string toString();
+    std::string type(){return Type();}
+    virtual uint32_t size() {return Size();}
+    virtual uint8_t & operator[](uint32_t index) {return data[index];}
+    virtual uint8_t * dataptr(){return data;}
+    static std::string Type() {return "scan";}
+    static uint32_t Size() {return 5;}
+    union
+    {
+        struct
+        {
+            uint8_t qual_s_sn;
+            uint8_t angle6to0_C;
+            uint8_t angle14to7;
+            uint8_t distance7to0;
+            uint8_t distance15to8;
+        };
+
+        uint8_t data[5];
+    };
+};
+
+struct complete_scan_data_packet : public data_packet
+{
+    complete_scan_data_packet();
+
+    virtual std::string toString();
+    std::string type(){return Type();}
+    virtual uint32_t size() {return Size();}
+    virtual uint8_t & operator[](uint32_t index)
+    {
+        uint32_t data_ind = index % 5;
+        uint32_t packet_ind = index / 5;
+        return data[packet_ind][data_ind];
+    }
+    virtual uint8_t * dataptr(){return data[0].data;}
+    static std::string Type() {return "complete_scan";}
+    static uint32_t Size() {return 5 * 360;}
+    scan_data_packet data[360];
+};
+
+struct health_data_packet : public data_packet
+{
+    health_data_packet();
+
+    virtual std::string toString();
+    virtual std::string type(){return Type();}
+    virtual uint32_t size() {return Size();}
+    virtual uint8_t & operator[](uint32_t index) {return data[index];}
+    virtual uint8_t * dataptr(){return data;}
+    static std::string Type() {return "health";}
+    static uint32_t Size() {return 3;}
+    union
+    {
+        struct
+        {
+            uint8_t status;
+            uint8_t error_code7to0;
+            uint8_t error_code15to8;
+        };
+        uint8_t data[3];
+    };
+};
+
+struct info_data_packet : public data_packet
+{
+
+    info_data_packet();
+
+    virtual std::string toString();
+    virtual std::string type(){return Type();}
+    virtual uint32_t size() {return Size();}
+    virtual uint8_t & operator[](uint32_t index) {return data[index];}
+    virtual uint8_t * dataptr(){return data;}
+    static std::string Type() {return "info";}
+    static uint32_t Size() {return 20;}
+    union
+    {
+        struct
+        {
+            uint8_t model;
+            uint8_t firmware_minor;
+            uint8_t firmware_major;
+            uint8_t hardware;
+            uint8_t serialnumber[16];
+        };
+        uint8_t data[20];
+    };
+};
+
+struct firmware_data_packet : public data_packet
+{
+    firmware_data_packet();
+    virtual std::string toString();
+    virtual std::string type(){return Type();}
+    virtual uint32_t size() {return Size();}
+    virtual uint8_t & operator[](uint32_t index) {return data[index];}
+    virtual uint8_t * dataptr(){return data;}
+    static std::string Type() {return "firmware";}
+    static uint32_t Size() {return 56;}
+    union
+    {
+        struct
+        {
+            uint8_t line1[18];
+            uint8_t line2[29];
+            uint8_t line3[9];
+        };
+        uint8_t data[56];
+    };
+};
+
+
 class QTcpServer;
 class QTcpSocket;
 class QGraphicsScene;
@@ -238,5 +369,7 @@ private:
     QGraphicsLineItem * m_litem;
     QGraphicsItem * m_triangle;
 };
+
+
 
 #endif // SCANVIEW_H
