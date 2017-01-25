@@ -26,18 +26,17 @@
      <x>0</x>
      <y>0</y>
      <width>1186</width>
-     <height>22</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionNew_Configuration"/>
-    <addaction name="actionClose"/>
-    <addaction name="actionSave_Configuration"/>
+    <addaction name="actionLoadConfig"/>
+    <addaction name="actionSaveConfig"/>
     <addaction name="separator"/>
-    <addaction name="actionClose_2"/>
+    <addaction name="actionClose"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -50,7 +49,7 @@
     <property name="title">
      <string>Help</string>
     </property>
-    <addaction name="actionAbout_Scanview"/>
+    <addaction name="actionAboutScanview"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuTools"/>
@@ -79,10 +78,12 @@
    <addaction name="actionDisconnect"/>
    <addaction name="separator"/>
    <addaction name="actionRestartCtrlmod"/>
+   <addaction name="actionStopCtrlmod"/>
    <addaction name="actionUpdateFirmware"/>
    <addaction name="separator"/>
    <addaction name="actionGetLog"/>
    <addaction name="actionRemoveLogs"/>
+   <addaction name="actionSetupAutostart"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QDockWidget" name="m_sensor_dock">
@@ -103,9 +104,16 @@
    </attribute>
    <widget class="console_view" name="console"/>
   </widget>
-  <action name="actionClose">
+  <action name="actionLoadConfig">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/load_config.png</normaloff>:/toolbars/icons/toolbars/load_config.png</iconset>
+   </property>
    <property name="text">
-    <string>Open Configuration</string>
+    <string>Load Config File</string>
+   </property>
+   <property name="toolTip">
+    <string>Load configuration file</string>
    </property>
   </action>
   <action name="actionPreferences">
@@ -113,24 +121,32 @@
     <string>Preferences</string>
    </property>
   </action>
-  <action name="actionSave_Configuration">
+  <action name="actionSaveConfig">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/save_cfg.png</normaloff>:/toolbars/icons/toolbars/save_cfg.png</iconset>
+   </property>
    <property name="text">
-    <string>Save Configuration</string>
+    <string>Save Config File</string>
+   </property>
+   <property name="toolTip">
+    <string>Save configuration file</string>
    </property>
   </action>
-  <action name="actionClose_2">
+  <action name="actionClose">
    <property name="text">
     <string>Close</string>
    </property>
-  </action>
-  <action name="actionNew_Configuration">
-   <property name="text">
-    <string>New Configuration</string>
+   <property name="toolTip">
+    <string>Close Scanview</string>
    </property>
   </action>
-  <action name="actionAbout_Scanview">
+  <action name="actionAboutScanview">
    <property name="text">
     <string>About Scanview</string>
+   </property>
+   <property name="toolTip">
+    <string>Learn about this wonderful program</string>
    </property>
   </action>
   <action name="actionConnect">
@@ -203,6 +219,30 @@
    </property>
    <property name="toolTip">
     <string>Delete log files on edison</string>
+   </property>
+  </action>
+  <action name="actionSetupAutostart">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/setup_autostart.png</normaloff>:/toolbars/icons/toolbars/setup_autostart.png</iconset>
+   </property>
+   <property name="text">
+    <string>setupAutostart</string>
+   </property>
+   <property name="toolTip">
+    <string>Setup server autostart so that when the edison is turned on or reboots the server program and ctrlmod automatically start</string>
+   </property>
+  </action>
+  <action name="actionStopCtrlmod">
+   <property name="icon">
+    <iconset resource="../scanview_icons.qrc">
+     <normaloff>:/toolbars/icons/toolbars/stop_ctrlmod.png</normaloff>:/toolbars/icons/toolbars/stop_ctrlmod.png</iconset>
+   </property>
+   <property name="text">
+    <string>stopCtrlmod</string>
+   </property>
+   <property name="toolTip">
+    <string>Kill the ctrlmod navigation program</string>
    </property>
   </action>
  </widget>

@@ -26,10 +26,6 @@ build_pass:CONFIG(debug, debug|release)
     TARGET = $$join(TARGET,,,d)
 }
 
-LIBS += -L$$PWD/deps/libssh/lib/$$ARCH
-LIBS += -L$$PWD/deps/libssh/bin/$$ARCH
-LIBS += -lssh
-
 HEADERS += \
     include/scanview.h \
     include/mapview.h \

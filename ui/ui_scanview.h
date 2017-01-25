@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'scanview.ui'
 **
-** Created by: Qt User Interface Compiler version 5.5.0
+** Created by: Qt User Interface Compiler version 5.7.0
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -31,18 +31,19 @@ QT_BEGIN_NAMESPACE
 class Ui_ScanView
 {
 public:
-    QAction *actionClose;
+    QAction *actionLoadConfig;
     QAction *actionPreferences;
-    QAction *actionSave_Configuration;
-    QAction *actionClose_2;
-    QAction *actionNew_Configuration;
-    QAction *actionAbout_Scanview;
+    QAction *actionSaveConfig;
+    QAction *actionClose;
+    QAction *actionAboutScanview;
     QAction *actionConnect;
     QAction *actionDisconnect;
     QAction *actionUpdateFirmware;
     QAction *actionRestartCtrlmod;
     QAction *actionGetLog;
     QAction *actionRemoveLogs;
+    QAction *actionSetupAutostart;
+    QAction *actionStopCtrlmod;
     QWidget *centralWidget;
     QVBoxLayout *verticalLayout;
     MapView *m_mapview;
@@ -62,48 +63,62 @@ public:
         if (ScanView->objectName().isEmpty())
             ScanView->setObjectName(QStringLiteral("ScanView"));
         ScanView->resize(1186, 679);
-        actionClose = new QAction(ScanView);
-        actionClose->setObjectName(QStringLiteral("actionClose"));
+        actionLoadConfig = new QAction(ScanView);
+        actionLoadConfig->setObjectName(QStringLiteral("actionLoadConfig"));
+        QIcon icon;
+        icon.addFile(QStringLiteral(":/toolbars/icons/toolbars/load_config.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionLoadConfig->setIcon(icon);
         actionPreferences = new QAction(ScanView);
         actionPreferences->setObjectName(QStringLiteral("actionPreferences"));
-        actionSave_Configuration = new QAction(ScanView);
-        actionSave_Configuration->setObjectName(QStringLiteral("actionSave_Configuration"));
-        actionClose_2 = new QAction(ScanView);
-        actionClose_2->setObjectName(QStringLiteral("actionClose_2"));
-        actionNew_Configuration = new QAction(ScanView);
-        actionNew_Configuration->setObjectName(QStringLiteral("actionNew_Configuration"));
-        actionAbout_Scanview = new QAction(ScanView);
-        actionAbout_Scanview->setObjectName(QStringLiteral("actionAbout_Scanview"));
+        actionSaveConfig = new QAction(ScanView);
+        actionSaveConfig->setObjectName(QStringLiteral("actionSaveConfig"));
+        QIcon icon1;
+        icon1.addFile(QStringLiteral(":/toolbars/icons/toolbars/save_cfg.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionSaveConfig->setIcon(icon1);
+        actionClose = new QAction(ScanView);
+        actionClose->setObjectName(QStringLiteral("actionClose"));
+        actionAboutScanview = new QAction(ScanView);
+        actionAboutScanview->setObjectName(QStringLiteral("actionAboutScanview"));
         actionConnect = new QAction(ScanView);
         actionConnect->setObjectName(QStringLiteral("actionConnect"));
-        QIcon icon;
-        icon.addFile(QStringLiteral(":/toolbars/icons/toolbars/connect.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionConnect->setIcon(icon);
+        QIcon icon2;
+        icon2.addFile(QStringLiteral(":/toolbars/icons/toolbars/connect.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionConnect->setIcon(icon2);
         actionDisconnect = new QAction(ScanView);
         actionDisconnect->setObjectName(QStringLiteral("actionDisconnect"));
-        QIcon icon1;
-        icon1.addFile(QStringLiteral(":/toolbars/icons/toolbars/disconnect.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionDisconnect->setIcon(icon1);
+        QIcon icon3;
+        icon3.addFile(QStringLiteral(":/toolbars/icons/toolbars/disconnect.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionDisconnect->setIcon(icon3);
         actionUpdateFirmware = new QAction(ScanView);
         actionUpdateFirmware->setObjectName(QStringLiteral("actionUpdateFirmware"));
-        QIcon icon2;
-        icon2.addFile(QStringLiteral(":/toolbars/icons/toolbars/update_firmware.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionUpdateFirmware->setIcon(icon2);
+        QIcon icon4;
+        icon4.addFile(QStringLiteral(":/toolbars/icons/toolbars/update_firmware.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionUpdateFirmware->setIcon(icon4);
         actionRestartCtrlmod = new QAction(ScanView);
         actionRestartCtrlmod->setObjectName(QStringLiteral("actionRestartCtrlmod"));
-        QIcon icon3;
-        icon3.addFile(QStringLiteral(":/toolbars/icons/toolbars/restart_edison.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionRestartCtrlmod->setIcon(icon3);
+        QIcon icon5;
+        icon5.addFile(QStringLiteral(":/toolbars/icons/toolbars/restart_edison.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionRestartCtrlmod->setIcon(icon5);
         actionGetLog = new QAction(ScanView);
         actionGetLog->setObjectName(QStringLiteral("actionGetLog"));
-        QIcon icon4;
-        icon4.addFile(QStringLiteral(":/toolbars/icons/toolbars/get_log_file.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionGetLog->setIcon(icon4);
+        QIcon icon6;
+        icon6.addFile(QStringLiteral(":/toolbars/icons/toolbars/get_log_file.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionGetLog->setIcon(icon6);
         actionRemoveLogs = new QAction(ScanView);
         actionRemoveLogs->setObjectName(QStringLiteral("actionRemoveLogs"));
-        QIcon icon5;
-        icon5.addFile(QStringLiteral(":/toolbars/icons/toolbars/delete_logs.png"), QSize(), QIcon::Normal, QIcon::Off);
-        actionRemoveLogs->setIcon(icon5);
+        QIcon icon7;
+        icon7.addFile(QStringLiteral(":/toolbars/icons/toolbars/delete_logs.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionRemoveLogs->setIcon(icon7);
+        actionSetupAutostart = new QAction(ScanView);
+        actionSetupAutostart->setObjectName(QStringLiteral("actionSetupAutostart"));
+        QIcon icon8;
+        icon8.addFile(QStringLiteral(":/toolbars/icons/toolbars/setup_autostart.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionSetupAutostart->setIcon(icon8);
+        actionStopCtrlmod = new QAction(ScanView);
+        actionStopCtrlmod->setObjectName(QStringLiteral("actionStopCtrlmod"));
+        QIcon icon9;
+        icon9.addFile(QStringLiteral(":/toolbars/icons/toolbars/stop_ctrlmod.png"), QSize(), QIcon::Normal, QIcon::Off);
+        actionStopCtrlmod->setIcon(icon9);
         centralWidget = new QWidget(ScanView);
         centralWidget->setObjectName(QStringLiteral("centralWidget"));
         verticalLayout = new QVBoxLayout(centralWidget);
@@ -118,7 +133,7 @@ public:
         ScanView->setCentralWidget(centralWidget);
         menuBar = new QMenuBar(ScanView);
         menuBar->setObjectName(QStringLiteral("menuBar"));
-        menuBar->setGeometry(QRect(0, 0, 1186, 22));
+        menuBar->setGeometry(QRect(0, 0, 1186, 19));
         menuFile = new QMenu(menuBar);
         menuFile->setObjectName(QStringLiteral("menuFile"));
         menuTools = new QMenu(menuBar);
@@ -151,22 +166,23 @@ public:
         menuBar->addAction(menuFile->menuAction());
         menuBar->addAction(menuTools->menuAction());
         menuBar->addAction(menuHelp->menuAction());
-        menuFile->addAction(actionNew_Configuration);
-        menuFile->addAction(actionClose);
-        menuFile->addAction(actionSave_Configuration);
+        menuFile->addAction(actionLoadConfig);
+        menuFile->addAction(actionSaveConfig);
         menuFile->addSeparator();
-        menuFile->addAction(actionClose_2);
+        menuFile->addAction(actionClose);
         menuTools->addSeparator();
         menuTools->addAction(actionPreferences);
-        menuHelp->addAction(actionAbout_Scanview);
+        menuHelp->addAction(actionAboutScanview);
         mainToolBar->addAction(actionConnect);
         mainToolBar->addAction(actionDisconnect);
         mainToolBar->addSeparator();
         mainToolBar->addAction(actionRestartCtrlmod);
+        mainToolBar->addAction(actionStopCtrlmod);
         mainToolBar->addAction(actionUpdateFirmware);
         mainToolBar->addSeparator();
         mainToolBar->addAction(actionGetLog);
         mainToolBar->addAction(actionRemoveLogs);
+        mainToolBar->addAction(actionSetupAutostart);
 
         retranslateUi(ScanView);
 
@@ -176,12 +192,23 @@ public:
     void retranslateUi(QMainWindow *ScanView)
     {
         ScanView->setWindowTitle(QApplication::translate("ScanView", "ScanView", 0));
-        actionClose->setText(QApplication::translate("ScanView", "Open Configuration", 0));
+        actionLoadConfig->setText(QApplication::translate("ScanView", "Load Config File", 0));
+#ifndef QT_NO_TOOLTIP
+        actionLoadConfig->setToolTip(QApplication::translate("ScanView", "Load configuration file", 0));
+#endif // QT_NO_TOOLTIP
         actionPreferences->setText(QApplication::translate("ScanView", "Preferences", 0));
-        actionSave_Configuration->setText(QApplication::translate("ScanView", "Save Configuration", 0));
-        actionClose_2->setText(QApplication::translate("ScanView", "Close", 0));
-        actionNew_Configuration->setText(QApplication::translate("ScanView", "New Configuration", 0));
-        actionAbout_Scanview->setText(QApplication::translate("ScanView", "About Scanview", 0));
+        actionSaveConfig->setText(QApplication::translate("ScanView", "Save Config File", 0));
+#ifndef QT_NO_TOOLTIP
+        actionSaveConfig->setToolTip(QApplication::translate("ScanView", "Save configuration file", 0));
+#endif // QT_NO_TOOLTIP
+        actionClose->setText(QApplication::translate("ScanView", "Close", 0));
+#ifndef QT_NO_TOOLTIP
+        actionClose->setToolTip(QApplication::translate("ScanView", "Close Scanview", 0));
+#endif // QT_NO_TOOLTIP
+        actionAboutScanview->setText(QApplication::translate("ScanView", "About Scanview", 0));
+#ifndef QT_NO_TOOLTIP
+        actionAboutScanview->setToolTip(QApplication::translate("ScanView", "Learn about this wonderful program", 0));
+#endif // QT_NO_TOOLTIP
         actionConnect->setText(QApplication::translate("ScanView", "connect", 0));
 #ifndef QT_NO_TOOLTIP
         actionConnect->setToolTip(QApplication::translate("ScanView", "Connect to ctrlmod service running on the edison", 0));
@@ -205,6 +232,14 @@ public:
         actionRemoveLogs->setText(QApplication::translate("ScanView", "RemoveLogs", 0));
 #ifndef QT_NO_TOOLTIP
         actionRemoveLogs->setToolTip(QApplication::translate("ScanView", "Delete log files on edison", 0));
+#endif // QT_NO_TOOLTIP
+        actionSetupAutostart->setText(QApplication::translate("ScanView", "setupAutostart", 0));
+#ifndef QT_NO_TOOLTIP
+        actionSetupAutostart->setToolTip(QApplication::translate("ScanView", "Setup server autostart so that when the edison is turned on or reboots the server program and ctrlmod automatically start", 0));
+#endif // QT_NO_TOOLTIP
+        actionStopCtrlmod->setText(QApplication::translate("ScanView", "stopCtrlmod", 0));
+#ifndef QT_NO_TOOLTIP
+        actionStopCtrlmod->setToolTip(QApplication::translate("ScanView", "Kill the ctrlmod navigation program", 0));
 #endif // QT_NO_TOOLTIP
         menuFile->setTitle(QApplication::translate("ScanView", "File", 0));
         menuTools->setTitle(QApplication::translate("ScanView", "Tools", 0));

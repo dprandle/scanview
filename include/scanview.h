@@ -4,8 +4,6 @@
 #include <QMainWindow>
 #include <QAbstractSocket>
 
-
-#include <libssh/libssh.h>
 #include <unordered_map>
 #include <ui_console_view.h>
 #include <stdint.h>
@@ -14,8 +12,49 @@
 
 #define PI 3.14159265359
 
-#define READ_BUF_SIZE 20024
+#define READ_BUF_SIZE 1024*1024
 #define COMMAND_BYTE_SIZE 72
+
+#define HEADER_BYTE_SIZE 8
+
+#define RESTART_CTRLMOD "restart_ctrlmod"
+#define KILL_CTRLMOD "kill_ctrlmod"
+#define REBOOT_EDISON "reboot_edison"
+#define UPDATE_FIRMWARE "update_firmware"
+#define GET_LOG_FILES "get_log_files"
+#define CLEAR_LOGS "clear_logs"
+#define SETUP_EDISON_STARTUP "setup_edison_startup"
+#define COMMAND_ACK "command_ack"
+#define DATA_ACK "data_ack"
+#define SERVER_CONSOLE_LOG "server_console.log"
+#define SERVER_STATUS_LOG "server_status.log"
+#define CONSOLE_LOG "ctrlmod_console.log"
+#define STATUS_LOG "ctrlmod_status.log"
+#define GET_FIRMWARE "get_firmware"
+
+#define STARTUP_SETTINGS "scanview.init"
+
+struct edserver_packet_header
+{
+    edserver_packet_header();
+    void clear();
+    union
+    {
+        struct
+        {
+            uint32_t hash_id;
+            uint32_t data_size;
+        };
+        uint8_t data[HEADER_BYTE_SIZE];
+    };
+};
+
+enum current_state
+{
+    cs_idle,
+    cs_receiving_header,
+    cs_receiving_data
+};
 
 
 struct data_packet
@@ -291,12 +330,48 @@ struct pulsed_light_message
     static std::string Type() {return "pulsed_light_message";}
 };
 
+struct ctrlmod_data
+{
+    ctrlmod_data();
+    ~ctrlmod_data();
+
+    char m_read_buffer[READ_BUF_SIZE];
+    uint32_t m_read_cur_index;
+    uint32_t m_read_raw_index;
+    uint32_t m_cur_index;
+    QTcpSocket * m_sckt;
+    std::unordered_map<uint, data_packet*> m_packets;
+    std::vector<byte_4> m_scan;
+    pulsed_light_message m_cur_plmsg;
+    nav_message m_cur_navmsg;
+};
+
+struct edserver_data
+{
+    edserver_data();
+    ~edserver_data();
+
+    char m_read_buffer[READ_BUF_SIZE];
+    uint32_t m_read_cur_index;
+    uint32_t m_read_raw_index;
+    uint32_t m_cur_index;
+    QTcpSocket * m_sckt;
+    current_state m_state;
+    edserver_packet_header m_cur_header;
+    std::vector<uint8_t> m_cur_data;
+
+    uint32_t m_firmware_ack_amnt;
+};
+
+class QProgressDialog;
+
+
 class ScanView : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    enum command_type
+    enum rp_lidar_command_type
     {
         HealthReq,
         InfoReq,
@@ -309,65 +384,77 @@ public:
     ScanView(QWidget *parent = 0);
     ~ScanView();
 
+    void load_init_file();
+    void save_init_file();
+
+    void load_config_file();
+    void save_config_file();
+
+
 public slots:
 
+    void on_actionLoadConfig_triggered();
+    void on_actionSaveConfig_triggered();
+    void on_actionClose_triggered();
+    void on_actionAboutScanview_triggered();
     void on_actionPreferences_triggered();
+
     void on_actionConnect_triggered();
     void on_actionDisconnect_triggered();
+
     void on_actionUpdateFirmware_triggered();
     void on_actionRestartCtrlmod_triggered();
     void on_actionGetLog_triggered();
     void on_actionRemoveLogs_triggered();
+    void on_actionSetupAutostart_triggered();
+    void on_actionStopCtrlmod_triggered();
 
-    void onDataAvailable();
-    void onSendCommand();
-    void readUpdate();
+    void onCtrlmodDataAvailable();
+    void onCtrlmodError(QAbstractSocket::SocketError);
+    void onCtrlmodConnected();
+    void ctrlmodReadUpdate();
+    void onCtrlmodSendCommand();
+    void onCtrlmodSendAltCommand();
 
-    void onHostFound();
-    void onError(QAbstractSocket::SocketError);
-    void onConnected();
+    void onEdserverDataAvailable();
+    void onEdserverError(QAbstractSocket::SocketError);
+    void onEdserverConnected();
+    void edserverReadUpdate();
 
-    void onSendAltCommand();
+    void ctrlmod_connect();
+    void ctrlmod_disconnect();
+
+    void edserver_connect();
+    void edserver_disconnect();
+
+    static uint hash_id(const std::string & str);
+
+protected slots:
+
+    void closeEvent(QCloseEvent *event);
 
 private:
 
-    void _SSHConnect();
-    void _SSHDisconnect();
+    void ctrlmod_pckt_received(data_packet * pckt);
+    void ctrlmod_scan_received();
+    void ctrlmod_pl_received();
+    void ctrlmod_nav_received();
+    void ctrlmod_handle_byte(char byte);
 
-    void _SCPConnect(uint read_or_write);
-    void _SCPDisconnect();
+    void edserver_handle_byte(char byte);
+    void edserver_received_header();
+    void edserver_received_all_data();
 
-    void _SSHCommand(const QString & cmd);
-    int _verify_known_host();
-
-    bool m_ssh_connected;
-    bool m_scp_connected;
-    ssh_session my_ssh_session;
-    ssh_scp m_scp_session;
-
-    uint _hash_id(const std::string & str);
-    void _pckt_received(data_packet * pckt);
-    void _scan_received();
-    void _pl_received();
-    void _nav_received();
-    void _handle_byte(char byte);
-
-    char m_read_buffer[READ_BUF_SIZE];
-    uint m_read_cur_index;
-    uint m_read_raw_index;
-
-    uint m_cur_index;
-
-    Ui::ScanView *m_ui;
-    QTcpSocket * m_sckt;
+    Ui::ScanView * m_ui;
     preferences_dialog * m_preferences_dialog;
+
+    ctrlmod_data m_ctrlm;
+    edserver_data m_edserver;
+
     QGraphicsScene * m_scene;
-    std::unordered_map<uint, data_packet*> m_packets;
-    std::vector<byte_4> m_scan;
-    pulsed_light_message m_cur_plmsg;
-    nav_message m_cur_navmsg;
     QGraphicsLineItem * m_litem;
     QGraphicsItem * m_triangle;
+    QProgressDialog * m_firmware_progress;
 };
 
 

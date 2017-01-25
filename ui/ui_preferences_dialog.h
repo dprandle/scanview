@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'preferences_dialog.ui'
 **
-** Created by: Qt User Interface Compiler version 5.5.0
+** Created by: Qt User Interface Compiler version 5.7.0
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!
 ********************************************************************************/
@@ -21,7 +21,6 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 #include <QtWidgets/QListWidget>
-#include <QtWidgets/QPushButton>
 #include <QtWidgets/QSpacerItem>
 #include <QtWidgets/QSpinBox>
 #include <QtWidgets/QStackedWidget>
@@ -49,11 +48,17 @@ public:
     QLineEdit *le_host_name;
     QLabel *label_5;
     QSpinBox *sb_port;
+    QLabel *label_6;
+    QSpinBox *sb_edserver_port;
     QGroupBox *gb_host_ip;
     QFormLayout *formLayout;
     QLabel *label_2;
     QLineEdit *le_host_ip;
     QSpacerItem *verticalSpacer;
+    QHBoxLayout *horizontalLayout_6;
+    QSpacerItem *horizontalSpacer;
+    QToolButton *btn_load_config;
+    QToolButton *btn_save_config;
     QWidget *dirs;
     QVBoxLayout *verticalLayout_3;
     QGroupBox *groupBox_4;
@@ -69,10 +74,6 @@ public:
     QLineEdit *le_edison_log;
     QToolButton *tbtn_edison_logs;
     QSpacerItem *verticalSpacer_2;
-    QHBoxLayout *horizontalLayout;
-    QSpacerItem *horizontalSpacer;
-    QPushButton *btn_cancel;
-    QPushButton *btn_okay;
 
     void setupUi(QDialog *preferences_dialog)
     {
@@ -120,23 +121,23 @@ public:
         label_3 = new QLabel(conn);
         label_3->setObjectName(QStringLiteral("label_3"));
 
-        formLayout_3->setWidget(2, QFormLayout::LabelRole, label_3);
+        formLayout_3->setWidget(3, QFormLayout::LabelRole, label_3);
 
         le_username = new QLineEdit(conn);
         le_username->setObjectName(QStringLiteral("le_username"));
 
-        formLayout_3->setWidget(2, QFormLayout::FieldRole, le_username);
+        formLayout_3->setWidget(3, QFormLayout::FieldRole, le_username);
 
         label_4 = new QLabel(conn);
         label_4->setObjectName(QStringLiteral("label_4"));
 
-        formLayout_3->setWidget(3, QFormLayout::LabelRole, label_4);
+        formLayout_3->setWidget(4, QFormLayout::LabelRole, label_4);
 
         le_password = new QLineEdit(conn);
         le_password->setObjectName(QStringLiteral("le_password"));
         le_password->setEchoMode(QLineEdit::PasswordEchoOnEdit);
 
-        formLayout_3->setWidget(3, QFormLayout::FieldRole, le_password);
+        formLayout_3->setWidget(4, QFormLayout::FieldRole, le_password);
 
         label = new QLabel(conn);
         label->setObjectName(QStringLiteral("label"));
@@ -157,10 +158,24 @@ public:
 
         sb_port = new QSpinBox(conn);
         sb_port->setObjectName(QStringLiteral("sb_port"));
+        sb_port->setMinimum(1024);
         sb_port->setMaximum(65536);
-        sb_port->setValue(3366);
+        sb_port->setValue(13366);
 
         formLayout_3->setWidget(1, QFormLayout::FieldRole, sb_port);
+
+        label_6 = new QLabel(conn);
+        label_6->setObjectName(QStringLiteral("label_6"));
+
+        formLayout_3->setWidget(2, QFormLayout::LabelRole, label_6);
+
+        sb_edserver_port = new QSpinBox(conn);
+        sb_edserver_port->setObjectName(QStringLiteral("sb_edserver_port"));
+        sb_edserver_port->setMinimum(1024);
+        sb_edserver_port->setMaximum(65536);
+        sb_edserver_port->setValue(13367);
+
+        formLayout_3->setWidget(2, QFormLayout::FieldRole, sb_edserver_port);
 
 
         verticalLayout->addLayout(formLayout_3);
@@ -168,7 +183,7 @@ public:
         gb_host_ip = new QGroupBox(conn);
         gb_host_ip->setObjectName(QStringLiteral("gb_host_ip"));
         gb_host_ip->setCheckable(true);
-        gb_host_ip->setChecked(true);
+        gb_host_ip->setChecked(false);
         formLayout = new QFormLayout(gb_host_ip);
         formLayout->setObjectName(QStringLiteral("formLayout"));
         label_2 = new QLabel(gb_host_ip);
@@ -187,6 +202,31 @@ public:
         verticalSpacer = new QSpacerItem(20, 40, QSizePolicy::Minimum, QSizePolicy::Expanding);
 
         verticalLayout->addItem(verticalSpacer);
+
+        horizontalLayout_6 = new QHBoxLayout();
+        horizontalLayout_6->setObjectName(QStringLiteral("horizontalLayout_6"));
+        horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
+
+        horizontalLayout_6->addItem(horizontalSpacer);
+
+        btn_load_config = new QToolButton(conn);
+        btn_load_config->setObjectName(QStringLiteral("btn_load_config"));
+        QIcon icon2;
+        icon2.addFile(QStringLiteral(":/toolbars/icons/toolbars/load_config.png"), QSize(), QIcon::Normal, QIcon::Off);
+        btn_load_config->setIcon(icon2);
+
+        horizontalLayout_6->addWidget(btn_load_config);
+
+        btn_save_config = new QToolButton(conn);
+        btn_save_config->setObjectName(QStringLiteral("btn_save_config"));
+        QIcon icon3;
+        icon3.addFile(QStringLiteral(":/toolbars/icons/toolbars/save_cfg.png"), QSize(), QIcon::Normal, QIcon::Off);
+        btn_save_config->setIcon(icon3);
+
+        horizontalLayout_6->addWidget(btn_save_config);
+
+
+        verticalLayout->addLayout(horizontalLayout_6);
 
         stackedWidget->addWidget(conn);
         dirs = new QWidget();
@@ -256,29 +296,8 @@ public:
 
         verticalLayout_2->addLayout(horizontalLayout_2);
 
-        horizontalLayout = new QHBoxLayout();
-        horizontalLayout->setObjectName(QStringLiteral("horizontalLayout"));
-        horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
-
-        horizontalLayout->addItem(horizontalSpacer);
-
-        btn_cancel = new QPushButton(preferences_dialog);
-        btn_cancel->setObjectName(QStringLiteral("btn_cancel"));
-
-        horizontalLayout->addWidget(btn_cancel);
-
-        btn_okay = new QPushButton(preferences_dialog);
-        btn_okay->setObjectName(QStringLiteral("btn_okay"));
-
-        horizontalLayout->addWidget(btn_okay);
-
-
-        verticalLayout_2->addLayout(horizontalLayout);
-
 
         retranslateUi(preferences_dialog);
-        QObject::connect(btn_cancel, SIGNAL(pressed()), preferences_dialog, SLOT(reject()));
-        QObject::connect(btn_okay, SIGNAL(pressed()), preferences_dialog, SLOT(accept()));
         QObject::connect(listWidget, SIGNAL(currentRowChanged(int)), stackedWidget, SLOT(setCurrentIndex(int)));
         QObject::connect(gb_host_ip, SIGNAL(toggled(bool)), preferences_dialog, SLOT(on_toggle_use_ip(bool)));
         QObject::connect(tbtn_config_files, SIGNAL(pressed()), preferences_dialog, SLOT(on_config_files_btn()));
@@ -294,7 +313,7 @@ public:
 
     void retranslateUi(QDialog *preferences_dialog)
     {
-        preferences_dialog->setWindowTitle(QApplication::translate("preferences_dialog", "Dialog", 0));
+        preferences_dialog->setWindowTitle(QApplication::translate("preferences_dialog", "Preferences", 0));
 
         const bool __sortingEnabled = listWidget->isSortingEnabled();
         listWidget->setSortingEnabled(false);
@@ -311,17 +330,19 @@ public:
         label->setText(QApplication::translate("preferences_dialog", "Host Name", 0));
         le_host_name->setText(QApplication::translate("preferences_dialog", "edison", 0));
         label_5->setText(QApplication::translate("preferences_dialog", "Ctrlmod Port", 0));
+        label_6->setText(QApplication::translate("preferences_dialog", "Edserver Port", 0));
         gb_host_ip->setTitle(QApplication::translate("preferences_dialog", "Use IP instead of host name", 0));
         label_2->setText(QApplication::translate("preferences_dialog", "Host IP", 0));
         le_host_ip->setText(QApplication::translate("preferences_dialog", "192.168.42.1", 0));
+        btn_load_config->setText(QString());
+        btn_save_config->setText(QString());
         groupBox_4->setTitle(QApplication::translate("preferences_dialog", "Edison Firmware", 0));
+        le_edison_firmware->setText(QString());
         tbtn_edison_logs_2->setText(QApplication::translate("preferences_dialog", "...", 0));
         groupBox_3->setTitle(QApplication::translate("preferences_dialog", "Config Files", 0));
         tbtn_config_files->setText(QApplication::translate("preferences_dialog", "...", 0));
         groupBox_2->setTitle(QApplication::translate("preferences_dialog", "Edison Logs", 0));
         tbtn_edison_logs->setText(QApplication::translate("preferences_dialog", "...", 0));
-        btn_cancel->setText(QApplication::translate("preferences_dialog", "Cancel", 0));
-        btn_okay->setText(QApplication::translate("preferences_dialog", "Okay", 0));
     } // retranslateUi
 
 };

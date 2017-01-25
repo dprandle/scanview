@@ -13,5 +13,10 @@
         <file>icons/toolbars/disconnect.png</file>
         <file>icons/toolbars/connect.png</file>
         <file>icons/toolbars/delete_logs.png</file>
+        <file>icons/toolbars/setup_autostart.png</file>
+        <file>icons/toolbars/stop_edserver.png</file>
+        <file>icons/toolbars/load_config.png</file>
+        <file>icons/toolbars/save_cfg.png</file>
+        <file>icons/toolbars/stop_ctrlmod.png</file>
     </qresource>
 </RCC>

@@ -3,9 +3,10 @@
 #include <QFileDialog>
 #include <QGraphicsEllipseItem>
 #include <QTimer>
+#include <QProgressDialog>
+#include <QJsonDocument>
+#include <QJsonObject>
 
-
-#include <libssh/libssh.h>
 #include <preferences_dialog.h>
 #include <ui_sensor_controls.h>
 #include <ui_preferences_dialog.h>
@@ -29,25 +30,80 @@ static const mode_t S_IWUSR      = mode_t(_S_IWRITE);    ///< write by user
 static const mode_t S_IXUSR      = 0x00400000;           ///< does nothing
 #endif
 
+edserver_packet_header::edserver_packet_header():
+    data{0}
+{
+
+}
+
+void edserver_packet_header::clear()
+{
+    for (int i = 0; i < HEADER_BYTE_SIZE; ++i)
+        data[i] = 0;
+}
+
+ctrlmod_data::ctrlmod_data():
+    m_read_buffer{0},
+    m_read_cur_index(0),
+    m_read_raw_index(0),
+    m_cur_index(0),
+    m_sckt(new QTcpSocket()),
+    m_packets(),
+    m_scan(),
+    m_cur_plmsg(),
+    m_cur_navmsg()
+{
+    m_scan.reserve(720);
+
+    // Set up receive packets for ctrlmod
+    m_packets.emplace(ScanView::hash_id(health_data_packet::Type()), new health_data_packet());
+    m_packets.emplace(ScanView::hash_id(info_data_packet::Type()), new info_data_packet());
+    m_packets.emplace(ScanView::hash_id(firmware_data_packet::Type()), new firmware_data_packet());
+}
+
+ctrlmod_data::~ctrlmod_data()
+{
+    delete m_sckt;
+    while (m_packets.begin() != m_packets.end())
+    {
+        delete m_packets.begin()->second;
+        m_packets.erase(m_packets.begin());
+    }
+}
+
+edserver_data::edserver_data():
+    m_read_buffer{0},
+    m_read_cur_index(0),
+    m_read_raw_index(0),
+    m_cur_index(0),
+    m_sckt(new QTcpSocket()),
+    m_state(cs_idle),
+    m_cur_header(),
+    m_cur_data(),
+    m_firmware_ack_amnt(0)
+{}
+
+edserver_data::~edserver_data()
+{
+    delete m_sckt;
+}
+
 ScanView::ScanView(QWidget *parent) :
     QMainWindow(parent),
-    m_cur_index(0),
     m_ui(new Ui::ScanView),
-    m_sckt(new QTcpSocket),
-    m_scene(new QGraphicsScene),
     m_preferences_dialog(new preferences_dialog(this)),
-    m_ssh_connected(false),
-    m_scp_connected(false),
-    m_scp_session(nullptr),
-    my_ssh_session(nullptr)
+    m_ctrlm(),
+    m_edserver(),
+    m_scene(new QGraphicsScene),
+    m_litem(nullptr),
+    m_triangle(nullptr),
+    m_firmware_progress(nullptr)
 {
     m_ui->setupUi(this);
+
+    // Set up the graphics stuff for the scan
     m_ui->m_mapview->setScene(m_scene);
     m_scene->setSceneRect(-7000,-7000,14000,14000);
-    m_packets.emplace(_hash_id(health_data_packet::Type()), new health_data_packet());
-    m_packets.emplace(_hash_id(info_data_packet::Type()), new info_data_packet());
-    m_packets.emplace(_hash_id(firmware_data_packet::Type()), new firmware_data_packet());
-    m_scan.reserve(720); // max points possible per scan
 
     for (uint i = 0; i < 360; ++i)
     {
@@ -71,260 +127,219 @@ ScanView::ScanView(QWidget *parent) :
     m_litem = m_scene->addLine(0,0,0,0,pen);
     m_litem->setData(0,15);
 
-    connect(m_sckt, SIGNAL(readyRead()), this, SLOT(onDataAvailable()));
-    connect(m_sckt, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onError(QAbstractSocket::SocketError)));
-    connect(m_sckt, SIGNAL(connected()), this, SLOT(onConnected()));
+    connect(m_ctrlm.m_sckt, SIGNAL(readyRead()), this, SLOT(onCtrlmodDataAvailable()));
+    connect(m_ctrlm.m_sckt, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onCtrlmodError(QAbstractSocket::SocketError)));
+    connect(m_ctrlm.m_sckt, SIGNAL(connected()), this, SLOT(onCtrlmodConnected()));
 
-    connect(m_ui->sensors->ui->m_send_btn, SIGNAL(pressed()), this, SLOT(onSendCommand()));
-    connect(m_ui->sensors, SIGNAL(send_nav_packet()), SLOT(onSendAltCommand()));
+    connect(m_edserver.m_sckt, SIGNAL(readyRead()), this, SLOT(onEdserverDataAvailable()));
+    connect(m_edserver.m_sckt, SIGNAL(error(QAbstractSocket::SocketError)), this, SLOT(onEdserverError(QAbstractSocket::SocketError)));
+    connect(m_edserver.m_sckt, SIGNAL(connected()), this, SLOT(onEdserverConnected()));
+
+    connect(m_ui->sensors->ui->m_send_btn, SIGNAL(clicked()), this, SLOT(onCtrlmodSendCommand()));
+    connect(m_ui->sensors, SIGNAL(send_nav_packet()), SLOT(onCtrlmodSendAltCommand()));
+
+    connect(m_preferences_dialog->ui->btn_load_config, SIGNAL(clicked()), this, SLOT(on_actionLoadConfig_triggered()));
+    connect(m_preferences_dialog->ui->btn_save_config, SIGNAL(clicked()), this, SLOT(on_actionSaveConfig_triggered()));
 
     QTimer *timer = new QTimer(this);
-    connect(timer, SIGNAL(timeout()), this, SLOT(readUpdate()));
+    QTimer *two_timer = new QTimer(this);
+    connect(timer, SIGNAL(timeout()), this, SLOT(ctrlmodReadUpdate()));
+    connect(two_timer, SIGNAL(timeout()), this, SLOT(edserverReadUpdate()));
     timer->start(10);
+    two_timer->start(100);
+
+    load_init_file();
 }
 
 ScanView::~ScanView()
 {
-    delete m_sckt;
     delete m_ui;
     delete m_scene;
-    while (m_packets.begin() != m_packets.end())
+}
+
+void ScanView::closeEvent(QCloseEvent *event)
+{
+    save_init_file();
+    event->accept();
+}
+
+void ScanView::on_actionLoadConfig_triggered()
+{
+    load_config_file();
+}
+
+void ScanView::on_actionSaveConfig_triggered()
+{
+    save_config_file();
+}
+
+void ScanView::on_actionClose_triggered()
+{
+    close();
+}
+
+void ScanView::on_actionAboutScanview_triggered()
+{
+
+}
+
+void ScanView::load_init_file()
+{
+    QFile loadFile(STARTUP_SETTINGS);
+
+    if (!loadFile.open(QIODevice::ReadOnly))
     {
-        delete m_packets.begin()->second;
-        m_packets.erase(m_packets.begin());
+        // just use program defaults if no startup file
+        statusBar()->showMessage("No init file found - loading defaults...",3000);
     }
+
+    QByteArray saveData = loadFile.readAll();
+    QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+    QJsonObject load_object(loadDoc.object());
+    loadFile.close();
+
+
+    m_preferences_dialog->ui->le_host_name->setText(load_object.value("host_name").toString());
+    m_preferences_dialog->ui->le_host_ip->setText(load_object.value("host_ip").toString());
+    m_preferences_dialog->ui->le_password->setText(load_object.value("host_password").toString());
+    m_preferences_dialog->ui->le_username->setText(load_object.value("host_username").toString());
+    m_preferences_dialog->ui->sb_edserver_port->setValue(load_object.value("edison_server_port").toInt());
+    m_preferences_dialog->ui->sb_port->setValue(load_object.value("ctrlmod_port").toInt());
+    m_preferences_dialog->ui->gb_host_ip->setChecked(load_object.value("use_host_ip").toBool());
+
+    m_preferences_dialog->ui->le_config_files->setText(load_object.value("config_file_dir").toString());
+    m_preferences_dialog->ui->le_edison_firmware->setText(load_object.value("edison_firmware_dir").toString());
+    m_preferences_dialog->ui->le_edison_log->setText(load_object.value("edison_log_dir").toString());
+    statusBar()->showMessage("Successfully loaded init file " + QString(STARTUP_SETTINGS),5000);
+}
+
+void ScanView::save_init_file()
+{
+    QFile saveFile(STARTUP_SETTINGS);
+
+    if (!saveFile.open(QIODevice::WriteOnly))
+    {
+        return;
+    }
+
+    QJsonObject save_object;
+
+    save_object["host_name"] = m_preferences_dialog->ui->le_host_name->text();
+    save_object["host_ip"] = m_preferences_dialog->ui->le_host_ip->text();
+    save_object["host_password"] = m_preferences_dialog->ui->le_password->text();
+    save_object["host_username"] = m_preferences_dialog->ui->le_username->text();
+    save_object["edison_server_port"] = m_preferences_dialog->ui->sb_edserver_port->value();
+    save_object["ctrlmod_port"] = m_preferences_dialog->ui->sb_port->value();
+    save_object["use_host_ip"] = m_preferences_dialog->ui->gb_host_ip->isChecked();
+
+    save_object["config_file_dir"] = m_preferences_dialog->ui->le_config_files->text();
+    save_object["edison_firmware_dir"] = m_preferences_dialog->ui->le_edison_firmware->text();
+    save_object["edison_log_dir"] = m_preferences_dialog->ui->le_edison_log->text();
+
+    QJsonDocument saveDoc(save_object);
+    saveFile.write(saveDoc.toJson());
+    saveFile.close();
+}
+
+void ScanView::load_config_file()
+{
+    QString fname = QFileDialog::getOpenFileName(this,
+                                                 "Select config file to load",
+                                                 m_preferences_dialog->ui->le_config_files->text(),
+                                                 "Config file (*.cfg)");
+    if (fname.isEmpty())
+        return;
+
+    QFile loadFile(fname);
+    if (!loadFile.open(QIODevice::ReadOnly))
+    {
+        statusBar()->showMessage("Could not load config file " + fname,5000);
+        return;
+    }
+
+    QByteArray saveData = loadFile.readAll();
+    QJsonDocument loadDoc(QJsonDocument::fromJson(saveData));
+    QJsonObject load_object(loadDoc.object());
+    loadFile.close();
+
+    m_preferences_dialog->ui->le_host_name->setText(load_object.value("host_name").toString());
+    m_preferences_dialog->ui->le_host_ip->setText(load_object.value("host_ip").toString());
+    m_preferences_dialog->ui->le_password->setText(load_object.value("host_password").toString());
+    m_preferences_dialog->ui->le_username->setText(load_object.value("host_username").toString());
+    m_preferences_dialog->ui->sb_edserver_port->setValue(load_object.value("edison_server_port").toInt());
+    m_preferences_dialog->ui->sb_port->setValue(load_object.value("ctrlmod_port").toInt());
+    m_preferences_dialog->ui->gb_host_ip->setChecked(load_object.value("use_host_ip").toBool());
+    statusBar()->showMessage("Successfully loaded config file " + fname,5000);
+}
+
+void ScanView::save_config_file()
+{
+    QString fname = QFileDialog::getSaveFileName(this,
+                                                 "Save the config file",
+                                                 m_preferences_dialog->ui->le_config_files->text(),
+                                                 "Config file (*.cfg)");
+    if (fname.isEmpty())
+        return;
+
+    int ind = fname.indexOf('.');
+    if (ind != -1)
+        fname.truncate(ind);
+
+    fname += ".cfg";
+
+    QFile saveFile(fname);
+
+    if (!saveFile.open(QIODevice::WriteOnly))
+    {
+        statusBar()->showMessage("Could not save config file to " + fname,5000);
+        return;
+    }
+
+    QJsonObject save_object;
+
+    save_object["host_name"] = m_preferences_dialog->ui->le_host_name->text();
+    save_object["host_ip"] = m_preferences_dialog->ui->le_host_ip->text();
+    save_object["host_password"] = m_preferences_dialog->ui->le_password->text();
+    save_object["host_username"] = m_preferences_dialog->ui->le_username->text();
+    save_object["edison_server_port"] = m_preferences_dialog->ui->sb_edserver_port->value();
+    save_object["ctrlmod_port"] = m_preferences_dialog->ui->sb_port->value();
+    save_object["use_host_ip"] = m_preferences_dialog->ui->gb_host_ip->isChecked();
+
+    QJsonDocument saveDoc(save_object);
+    saveFile.write(saveDoc.toJson());
+    saveFile.close();
+    statusBar()->showMessage("Successfully saved config file to " + fname,5000);
 }
 
 void ScanView::on_actionConnect_triggered()
 {
-    QString host;
-    if (m_preferences_dialog->ui->gb_host_ip->isChecked())
-        host = m_preferences_dialog->ui->le_host_ip->text();
-    else
-        host = m_preferences_dialog->ui->le_host_name->text() + ".local";
-
-    m_sckt->connectToHost(host, m_preferences_dialog->ui->sb_port->value());
-}
-
-void ScanView::_SSHDisconnect()
-{
-    if (m_ssh_connected)
-    {
-        cprint("Disconnected from edison");
-        ssh_disconnect(my_ssh_session);
-        ssh_free(my_ssh_session);
-        m_ssh_connected = false;
-    }
-}
-
-int ScanView::_verify_known_host()
-{
-  int state, hlen;
-  unsigned char *hash = nullptr;
-  char *hexa = nullptr;
-
-  state = ssh_is_server_known(my_ssh_session);
-  hlen = ssh_get_pubkey_hash(my_ssh_session, &hash);
-  if (hlen < 0)
-    return -1;
-  switch (state)
-  {
-    case SSH_SERVER_KNOWN_OK:
-      break; /* ok */
-    case SSH_SERVER_KNOWN_CHANGED:
-      cprint("Host key for server changed");
-      delete hash;
-      return -1;
-    case SSH_SERVER_FOUND_OTHER:
-      cprint("The host key for this server was not found but another type of key exists");
-      delete hash;
-      return -1;
-    case SSH_SERVER_FILE_NOT_FOUND:
-      cprint("Could not find known host file. If you accept the host key here, the file will be automatically created");
-      /* fallback to SSH_SERVER_NOT_KNOWN behavior */
-    case SSH_SERVER_NOT_KNOWN:
-      hexa = ssh_get_hexa(hash, hlen);
-      cprint("The server is unknown. Setting up...");
-      delete hexa;
-      if (ssh_write_knownhost(my_ssh_session) < 0)
-      {
-        cprint("SSH error writing known host - " + QString(strerror(errno)));
-        delete hash;
-        return -1;
-      }
-      break;
-    case SSH_SERVER_ERROR:
-      cprint("SSH Servor error - " + QString(ssh_get_error(my_ssh_session)));
-      delete hash;
-      return -1;
-  }
-  delete hash;
-  return 0;
-}
-
-void ScanView::_SSHConnect()
-{
-    my_ssh_session = ssh_new();
-
-    if (my_ssh_session == NULL)
-        return;
-
-    ssh_set_blocking(my_ssh_session, 1);
-
-    QString host;
-    if (m_preferences_dialog->ui->gb_host_ip->isChecked())
-        host = m_preferences_dialog->ui->le_host_ip->text();
-    else
-        host = m_preferences_dialog->ui->le_host_name->text() + ".local";
-
-    ssh_options_set(my_ssh_session, SSH_OPTIONS_HOST, host.toStdString().c_str());
-    ssh_options_set(my_ssh_session, SSH_OPTIONS_USER, m_preferences_dialog->ui->le_username->text().toStdString().c_str());
-
-    // Connect to server
-    int rc = ssh_connect(my_ssh_session);
-    if (rc != SSH_OK)
-    {
-        cprint("SSH Error - " + QString(ssh_get_error(my_ssh_session)) + " Have you connected to the edison AP?");
-        ssh_free(my_ssh_session);
-        return;
-    }
-
-    if (_verify_known_host() != 0)
-    {
-        cprint("Error verifying host");
-        ssh_free(my_ssh_session);
-        return;
-    }
-
-    // Authenticate ourselves
-    while (ssh_userauth_password(my_ssh_session, nullptr, m_preferences_dialog->ui->le_password->text().toStdString().c_str()) != SSH_AUTH_SUCCESS);
-
-    m_ssh_connected = true;
-    cprint("Successfully logged in to edison");
+    ctrlmod_connect();
+    edserver_connect();
 }
 
 void ScanView::on_actionDisconnect_triggered()
 {
-    if (m_sckt->state() == QAbstractSocket::ConnectedState)
-    {
-        cprint("Closed connection with " + m_sckt->peerAddress().toString() + ":" + QString::number(m_sckt->peerPort()));
-        m_sckt->disconnectFromHost();
-    }
-    else
-    {
-        cprint("No connection to close");
-    }
-}
-
-void ScanView::_SCPConnect(uint read_or_write)
-{
-    if (m_scp_connected)
-    {
-        cprint("Error - already have scp connection established");
-        return;
-    }
-
-    if (!m_ssh_connected)
-    {
-        cprint("Error - must establish ssh connection before scp");
-        return;
-    }
-
-    int rc;
-    m_scp_session = ssh_scp_new(my_ssh_session, read_or_write | SSH_SCP_RECURSIVE, ".");
-    if (m_scp_session == NULL)
-    {
-      cprint("Error allocating scp session: %s\n" + QString(ssh_get_error(my_ssh_session)));
-      return;
-    }
-    rc = ssh_scp_init(m_scp_session);
-    if (rc != SSH_OK)
-    {
-      cprint("Error initializing scp session: %s\n" + QString(ssh_get_error(my_ssh_session)));
-      ssh_scp_free(m_scp_session);
-      return;
-    }
-    m_scp_connected = true;
-}
-
-void ScanView::_SCPDisconnect()
-{
-    if (m_scp_connected)
-    {
-        cprint("Disconnected from scp session");
-        ssh_scp_close(m_scp_session);
-        ssh_scp_free(m_scp_session);
-        m_scp_connected = false;
-    }
-}
-
-void ScanView::_SSHCommand(const QString & cmd)
-{
-    if (!m_ssh_connected)
-    {
-        cprint("No ssh connection established with edison - cannot complete command " + cmd);
-        return;
-    }
-
-    ssh_channel channel;
-    char buffer[256];
-    int rc;
-
-    int nbytes = 0;
-    channel = ssh_channel_new(my_ssh_session);
-    if (channel == NULL)
-    {
-        cprint("Error with creating ssh channel - " + QString(ssh_get_error(my_ssh_session)));
-        return;
-    }
-
-    rc = ssh_channel_open_session(channel);
-    if (rc != SSH_OK)
-    {
-        ssh_channel_free(channel);
-        cprint("Error with opening channel session - " + QString(ssh_get_error(my_ssh_session)));
-        return;
-    }
-
-
-    while (ssh_channel_request_exec(channel, cmd.toStdString().c_str()) != SSH_OK);
-    cprint("Successfully sent command " + cmd + " - waiting for reply...");
-
-    QString txt = "";
-    //usleep(10000);
-    int max_iter = 0;
-    while (ssh_channel_is_open(channel) && !ssh_channel_is_eof(channel) && max_iter < 20)
-    {
-      nbytes = ssh_channel_read_nonblocking(channel, buffer, sizeof(buffer), 0);
-//      if (nbytes < 0)
-//      {
-//          ssh_channel_send_eof(channel);
-//          ssh_channel_close(channel);
-//          ssh_channel_free(channel);
-//          cprint("Error with reading back command over channel - " + QString(ssh_get_error(my_ssh_session)));
-//          return;
-//      }
-      if (nbytes > 0)
-      {
-          for (int i = 0; i < nbytes; ++i)
-              txt.append(buffer[i]);
-      }
-      //usleep(1000);
-      ++max_iter;
-    }
-    cprint(txt);
-    cprint("Finished reading back reply");
-    ssh_channel_send_eof(channel);
-    ssh_channel_close(channel);
-    ssh_channel_free(channel);
+    ctrlmod_disconnect();
+    edserver_disconnect();
 }
 
 void ScanView::on_actionUpdateFirmware_triggered()
 {
+    m_firmware_progress = new QProgressDialog(this);
+    m_firmware_progress->setLabelText("Uploading firmware...");
+    m_firmware_progress->setCancelButton(nullptr);
+    m_firmware_progress->setWindowTitle("Firmware Progress");
+
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
+    {
+        cprint("Cannot send command to edison server - no connection active");
+        return;
+    }
+
     QString fname = QFileDialog::getOpenFileName(this,
                                                  "Select ctrlmod update file",
                                                  m_preferences_dialog->ui->le_edison_firmware->text(),
-                                                 "ctrlmod");
+                                                 "Firmware (ctrlmod*)");
     if (fname.isEmpty())
         return;
 
@@ -334,139 +349,159 @@ void ScanView::on_actionUpdateFirmware_triggered()
         cprint("Could not open file " + fname);
         return;
     }
-    QByteArray blob = file.readAll();
 
-    cprint ("Attempting to update ctrmod service with " + fname);
-
-    _SSHConnect();
-    _SSHCommand("killall ctrlmod\n");
-    _SCPConnect(SSH_SCP_WRITE);
-
-    if (!m_scp_connected)
+    int i = fname.lastIndexOf('/');
+    if (i < 0 || i >= fname.size())
     {
-        cprint("Cannot update ctrlmod service - scp service not connected");
+        cprint("Invalid file name for firmware... try again");
         return;
     }
 
-    int rc = ssh_scp_push_directory(m_scp_session, "progs", S_IRUSR | S_IWUSR | S_IXUSR);
-    if (rc != SSH_OK)
-    {
-      cprint("Can't get in to remote directory: " + QString(ssh_get_error(my_ssh_session)));
-      _SCPDisconnect();
-      _SSHDisconnect();
-      return;
-    }
-    cprint("Entering progs directory on remote host");
+    QString vers_name = fname.right(fname.size() - (i+1)); // strip the name
 
-    rc = ssh_scp_push_file(m_scp_session, "ctrlmod", blob.size(), S_IRUSR |  S_IWUSR);
-    if (rc != SSH_OK)
-    {
-      cprint("Can't open remote file: " + QString(ssh_get_error(my_ssh_session)));
-      _SCPDisconnect();
-      _SSHDisconnect();
-      return;
-    }
-    cprint("Preparing ctrlmod file for writing..");
+    QByteArray blob;
+    blob.push_back(static_cast<char>(vers_name.size()));
+    blob += vers_name;
+    blob += file.readAll();
+    edserver_packet_header header;
+    header.hash_id = hash_id(UPDATE_FIRMWARE);
+    header.data_size = blob.size();
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    m_edserver.m_sckt->write(blob.data(), header.data_size);
+    m_firmware_progress->setMaximum(header.data_size);
+    m_firmware_progress->setValue(0);
+    cprint("Sent request to update firmware with " + fname);
+}
 
-    rc = ssh_scp_write(m_scp_session, blob.data(), blob.size());
-    if (rc != SSH_OK)
+void ScanView::on_actionStopCtrlmod_triggered()
+{
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
     {
-      cprint("Can't write to remote file: " + QString(ssh_get_error(my_ssh_session)));
-      return;
+        cprint("Cannot send command to edison server - no connection active");
+        return;
     }
-    cprint("Successfully updated ctrmod service - restarting");
-    _SSHCommand("progs/ctrlmod &\n");
-    cprint("Successfully restarted ctrlmod service");
-    _SCPDisconnect();
-    _SSHDisconnect();
+
+    edserver_packet_header header;
+    header.hash_id = hash_id(KILL_CTRLMOD);
+    header.data_size = 0;
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    cprint("Sent request to edison to set up auto-start - so ctrlmod and server will automatically start when edison boots up");
+}
+
+void ScanView::on_actionSetupAutostart_triggered()
+{
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
+    {
+        cprint("Cannot send command to edison server - no connection active");
+        return;
+    }
+
+    edserver_packet_header header;
+    header.hash_id = hash_id(SETUP_EDISON_STARTUP);
+    header.data_size = 0;
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    cprint("Sent request to edison to set up auto-start - so ctrlmod and server will automatically start when edison boots up");
 }
 
 void ScanView::on_actionRestartCtrlmod_triggered()
 {
-    _SSHConnect();
-    if (!m_ssh_connected)
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
+    {
+        cprint("Cannot send command to edison server - no connection active");
         return;
-    cprint("Attempting to restart ctrlmod service");
-    _SSHCommand("killall ctrlmod");
-    cprint("Stopped ctrlmod service");
-    _SSHCommand("progs/ctrlmod &");
-    cprint("Succfully restarted ctrlmod service");
-    //_SSHDisconnect();
+    }
+
+    cprint("Sent restart ctrlmod request");
+    ctrlmod_disconnect();
+
+    edserver_packet_header header;
+    header.hash_id = hash_id(RESTART_CTRLMOD);
+    header.data_size = sizeof(int16_t);
+    int16_t port = static_cast<int16_t>(m_preferences_dialog->ui->sb_port->value());
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    m_edserver.m_sckt->write((char*)&port, header.data_size);
 }
 
 void ScanView::on_actionGetLog_triggered()
 {
-    _SSHConnect();
-    _SCPConnect(SSH_SCP_READ);
-    _SCPDisconnect();
-    _SSHDisconnect();
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
+    {
+        cprint("Cannot send command to edison server- no connection active");
+        return;
+    }
+
+    edserver_packet_header header;
+    header.hash_id = hash_id(GET_LOG_FILES);
+    header.data_size = 0;
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    cprint("Sent request to edison to get log files");
 }
 
 void ScanView::on_actionRemoveLogs_triggered()
 {
-    _SSHConnect();
-    _SCPConnect(SSH_SCP_WRITE);
-    _SCPDisconnect();
-    _SSHDisconnect();
-}
-
-void ScanView::onHostFound()
-{
-    cprint("Host found");
-}
-
-void ScanView::onError(QAbstractSocket::SocketError)
-{
-    cprint(m_sckt->errorString());
-}
-
-void ScanView::onConnected()
-{
-    if (m_sckt->state() == QAbstractSocket::ConnectedState)
+    if (m_edserver.m_sckt->state() != QAbstractSocket::ConnectedState)
     {
-        cprint("Connected to " + m_sckt->peerAddress().toString() + ":" + QString::number(m_sckt->peerPort()));
-        m_sckt->setSocketOption(QAbstractSocket::LowDelayOption, QVariant());
+        cprint("Cannot send command to edison server - no connection active");
+        return;
+    }
+
+    edserver_packet_header header;
+    header.hash_id = hash_id(CLEAR_LOGS);
+    header.data_size = 0;
+    m_edserver.m_sckt->write((char*)header.data, HEADER_BYTE_SIZE);
+    cprint("Sent request to edison to clear log files");
+}
+
+void ScanView::onCtrlmodError(QAbstractSocket::SocketError)
+{
+    cprint("Error trying to connect with ctrlmod " + m_ctrlm.m_sckt->errorString());
+}
+
+void ScanView::onCtrlmodConnected()
+{
+    if (m_ctrlm.m_sckt->state() == QAbstractSocket::ConnectedState)
+    {
+        cprint("Connected to ctrlmod on " + m_ctrlm.m_sckt->peerAddress().toString() + ":" + QString::number(m_ctrlm.m_sckt->peerPort()));
+        m_ctrlm.m_sckt->setSocketOption(QAbstractSocket::LowDelayOption, QVariant());
     }
     else
-        cprint("Could not connect to host");
-
+        cprint("Could not connect to ctrlmod");
 }
 
-void ScanView::onSendCommand()
+void ScanView::onCtrlmodSendCommand()
 {
-    if (m_sckt->state() != QAbstractSocket::ConnectedState)
+    if (m_ctrlm.m_sckt->state() != QAbstractSocket::ConnectedState)
     {
-        cprint("Cannot send command - no connection active");
+        cprint("Cannot send command to ctrlmod - no connection active");
         return;
     }
     command_t com_to_send;
-    command_type cmd = static_cast<command_type>(m_ui->sensors->ui->m_command_cbox->currentIndex());
-    com_to_send.hash_id = _hash_id("rplidar_request");
+    rp_lidar_command_type cmd = static_cast<rp_lidar_command_type>(m_ui->sensors->ui->m_command_cbox->currentIndex());
+    com_to_send.hash_id = hash_id("rplidar_request");
     com_to_send.cmd_data = cmd;
-    m_sckt->write((char*)com_to_send.data, COMMAND_BYTE_SIZE);
-    cprint("Sent rplidar command packet");
+    m_ctrlm.m_sckt->write((char*)com_to_send.data, COMMAND_BYTE_SIZE);
 }
 
-void ScanView::readUpdate()
+void ScanView::ctrlmodReadUpdate()
 {
-    while (m_read_cur_index != m_read_raw_index)
+    while (m_ctrlm.m_read_cur_index != m_ctrlm.m_read_raw_index)
     {
-        _handle_byte(m_read_buffer[m_read_cur_index]);
-        ++m_read_cur_index;
-        if (m_read_cur_index == READ_BUF_SIZE)
-            m_read_cur_index = 0;
+        ctrlmod_handle_byte(m_ctrlm.m_read_buffer[m_ctrlm.m_read_cur_index]);
+        ++m_ctrlm.m_read_cur_index;
+        if (m_ctrlm.m_read_cur_index == READ_BUF_SIZE)
+            m_ctrlm.m_read_cur_index = 0;
     }
 }
 
-void ScanView::onSendAltCommand()
+void ScanView::onCtrlmodSendAltCommand()
 {
-    if (m_sckt->state() != QAbstractSocket::ConnectedState)
+    if (m_ctrlm.m_sckt->state() != QAbstractSocket::ConnectedState)
     {
-        cprint("Cannot send command - no connection active");
+        cprint("Cannot send command to ctrlmod - no connection active");
         return;
     }
     command_t com_to_send;
-    com_to_send.hash_id = _hash_id("nav_system_request");
+    com_to_send.hash_id = hash_id("nav_system_request");
 
     com_to_send.cmd_data_d = m_ui->sensors->ui->m_alt_P_sb->value();
     com_to_send.cmd_data_d2 = m_ui->sensors->ui->m_alt_I_sb->value();
@@ -484,10 +519,90 @@ void ScanView::onSendAltCommand()
     if (m_ui->sensors->ui->m_threshold_dropout_cb->isChecked())
         com_to_send.cmd_data |= 0x0100;
 
-    m_sckt->write((char*)com_to_send.data, COMMAND_BYTE_SIZE);
+    m_ctrlm.m_sckt->write((char*)com_to_send.data, COMMAND_BYTE_SIZE);
 }
 
-uint ScanView::_hash_id(const std::string & strng)
+void ScanView::onCtrlmodDataAvailable()
+{
+    QByteArray data = m_ctrlm.m_sckt->readAll();
+    for (int i = 0; i < data.size(); ++i)
+    {
+        m_ctrlm.m_read_buffer[m_ctrlm.m_read_raw_index] = data[i];
+        ++m_ctrlm.m_read_raw_index;
+        if (m_ctrlm.m_read_raw_index == READ_BUF_SIZE)
+            m_ctrlm.m_read_raw_index = 0;
+        if (m_ctrlm.m_read_raw_index == m_ctrlm.m_read_cur_index)
+            cprint("Error: Read buffer is overflowing");
+    }
+}
+
+
+void ScanView::onEdserverDataAvailable()
+{
+    QByteArray data = m_edserver.m_sckt->readAll();
+    for (int i = 0; i < data.size(); ++i)
+    {
+        m_edserver.m_read_buffer[m_edserver.m_read_raw_index] = data[i];
+        ++m_edserver.m_read_raw_index;
+        if (m_edserver.m_read_raw_index == READ_BUF_SIZE)
+            m_edserver.m_read_raw_index = 0;
+        if (m_edserver.m_read_raw_index == m_edserver.m_read_cur_index)
+            cprint("Error: Read buffer is overflowing");
+    }
+}
+
+void ScanView::onEdserverError(QAbstractSocket::SocketError)
+{
+    cprint("Error trying to connect with edison server: " + m_edserver.m_sckt->errorString());
+}
+
+void ScanView::onEdserverConnected()
+{
+    if (m_edserver.m_sckt->state() == QAbstractSocket::ConnectedState)
+    {
+        cprint("Connected to edison server on " + m_edserver.m_sckt->peerAddress().toString() + ":" + QString::number(m_edserver.m_sckt->peerPort()));
+        m_edserver.m_sckt->setSocketOption(QAbstractSocket::LowDelayOption, QVariant());
+    }
+    else
+        cprint("Could not connect to edison server");
+}
+
+void ScanView::edserverReadUpdate()
+{
+    while (m_edserver.m_read_cur_index != m_edserver.m_read_raw_index)
+    {
+        edserver_handle_byte(m_edserver.m_read_buffer[m_edserver.m_read_cur_index]);
+        ++m_edserver.m_read_cur_index;
+        if (m_edserver.m_read_cur_index == READ_BUF_SIZE)
+            m_edserver.m_read_cur_index = 0;
+    }
+}
+
+void ScanView::edserver_connect()
+{
+    QString host;
+    if (m_preferences_dialog->ui->gb_host_ip->isChecked())
+        host = m_preferences_dialog->ui->le_host_ip->text();
+    else
+        host = m_preferences_dialog->ui->le_host_name->text() + ".local";
+
+    m_edserver.m_sckt->connectToHost(host, m_preferences_dialog->ui->sb_edserver_port->value());
+}
+
+void ScanView::edserver_disconnect()
+{
+    if (m_edserver.m_sckt->state() == QAbstractSocket::ConnectedState)
+    {
+        cprint("Closed connection with edison server on " + m_edserver.m_sckt->peerAddress().toString() + ":" + QString::number(m_edserver.m_sckt->peerPort()));
+        m_edserver.m_sckt->disconnectFromHost();
+    }
+    else
+    {
+        cprint("No connection with edison server to close");
+    }
+}
+
+uint ScanView::hash_id(const std::string & strng)
 {
     uint hash = 5381;
     int c;
@@ -498,121 +613,268 @@ uint ScanView::_hash_id(const std::string & strng)
     return hash;
 }
 
-void ScanView::onDataAvailable()
+void ScanView::edserver_handle_byte(char byte)
 {
-    QByteArray data = m_sckt->readAll();
-    for (int i = 0; i < data.size(); ++i)
-    {
-        m_read_buffer[m_read_raw_index] = data[i];
-        ++m_read_raw_index;
-        if (m_read_raw_index == READ_BUF_SIZE)
-            m_read_raw_index = 0;
-        if (m_read_raw_index == m_read_cur_index)
-            cprint("Error: Read buffer is overflowing");
-    }
-}
+    if (m_edserver.m_state == cs_idle)
+        m_edserver.m_state = cs_receiving_header;
 
-void ScanView::_handle_byte(char byte)
-{
-    static hash_val curhash;
-    static byte_4 pckt_size;
-    static uint scanhashid = _hash_id(complete_scan_data_packet::Type());
-    static uint plmessage = _hash_id(pulsed_light_message::Type());
-    static uint navmessage = _hash_id(nav_message::Type());
-
-    if (m_cur_index < 4)
+    if (m_edserver.m_state == cs_receiving_header)
     {
-        curhash.data[m_cur_index] = byte;
-        ++m_cur_index;
+        m_edserver.m_cur_header.data[m_edserver.m_cur_index] = byte;
+        ++m_edserver.m_cur_index;
+        if (m_edserver.m_cur_index == HEADER_BYTE_SIZE)
+            edserver_received_header();
     }
     else
     {
-        std::unordered_map<uint,data_packet*>::iterator pcktIter = m_packets.find(curhash.hashval);
-        if (pcktIter == m_packets.end())
+        m_edserver.m_cur_data[m_edserver.m_cur_index] = byte;
+        ++m_edserver.m_cur_index;
+        if (m_edserver.m_cur_index == m_edserver.m_cur_data.size())
+            edserver_received_all_data();
+    }
+}
+
+void ScanView::edserver_received_header()
+{
+    if (m_edserver.m_cur_header.hash_id == hash_id(DATA_ACK))
+    {
+        m_edserver.m_firmware_ack_amnt = m_edserver.m_cur_header.data_size;
+        if (m_firmware_progress != nullptr)
+            m_firmware_progress->setValue(m_edserver.m_firmware_ack_amnt);
+        m_edserver.m_cur_header.data_size = 0;
+    }
+
+    if (m_edserver.m_cur_header.data_size != 0)
+    {
+        m_edserver.m_state = cs_receiving_data;
+        m_edserver.m_cur_data.resize(m_edserver.m_cur_header.data_size);
+    }
+    else
+    {
+        m_edserver.m_state = cs_idle;
+        m_edserver.m_cur_header.clear();
+    }
+    m_edserver.m_cur_index = 0;
+}
+
+void ScanView::edserver_received_all_data()
+{
+    if (m_edserver.m_cur_header.hash_id == hash_id(COMMAND_ACK))
+    {
+        char * str = new char[m_edserver.m_cur_header.data_size];
+
+        for (uint32_t i = 0; i < m_edserver.m_cur_header.data_size; ++i)
+            str[i] = static_cast<char>(m_edserver.m_cur_data[i]);
+        QString disp_str(str);
+        disp_str.resize(m_edserver.m_cur_header.data_size);
+        delete [] str;
+
+        if (disp_str == QString(RESTART_CTRLMOD))
+        {
+            cprint("Received ack for command " + disp_str);
+            QTimer::singleShot(1000, this, SLOT(ctrlmod_connect()));
+        }
+        else if (disp_str.contains("Successfully updated"))
+        {
+            m_firmware_progress->reset();
+            delete m_firmware_progress;
+            m_firmware_progress = nullptr;
+            on_actionRestartCtrlmod_triggered();
+        }
+        else if (disp_str.contains(GET_FIRMWARE))
+        {
+            cprint("Firmware: " + disp_str.split(" ")[1]);
+        }
+        else
+        {
+            cprint("Received ack for command " + disp_str);
+        }
+    }
+
+    if (m_edserver.m_cur_header.hash_id == hash_id(SERVER_CONSOLE_LOG) ||
+            m_edserver.m_cur_header.hash_id == hash_id(SERVER_STATUS_LOG) ||
+            m_edserver.m_cur_header.hash_id == hash_id(CONSOLE_LOG) ||
+            m_edserver.m_cur_header.hash_id == hash_id(STATUS_LOG))
+    {
+        QString dir = m_preferences_dialog->ui->le_edison_log->text();
+
+        if (!dir.isEmpty() && dir[dir.size()-1] != '/')
+            dir += "/";
+
+        QString nm;
+        if(m_edserver.m_cur_header.hash_id == hash_id(SERVER_CONSOLE_LOG))
+            nm = SERVER_CONSOLE_LOG;
+        else if(m_edserver.m_cur_header.hash_id == hash_id(SERVER_STATUS_LOG))
+            nm = SERVER_STATUS_LOG;
+        else if(m_edserver.m_cur_header.hash_id == hash_id(CONSOLE_LOG))
+            nm = CONSOLE_LOG;
+        else if(m_edserver.m_cur_header.hash_id == hash_id(STATUS_LOG))
+            nm = STATUS_LOG;
+
+        QFile f(dir + nm);
+        if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            return;
+
+        QDataStream ds(&f);
+        for (uint32_t i = 0; i < m_edserver.m_cur_data.size(); ++i)
+            ds << m_edserver.m_cur_data[i];
+        f.close();
+    }
+
+    m_edserver.m_cur_index = 0;
+    m_edserver.m_state = cs_idle;
+    m_edserver.m_cur_header.clear();
+    m_edserver.m_cur_data.clear();
+}
+
+void ScanView::ctrlmod_connect()
+{
+    QString host;
+    if (m_preferences_dialog->ui->gb_host_ip->isChecked())
+        host = m_preferences_dialog->ui->le_host_ip->text();
+    else
+        host = m_preferences_dialog->ui->le_host_name->text() + ".local";
+
+    m_ctrlm.m_sckt->connectToHost(host, m_preferences_dialog->ui->sb_port->value());
+}
+
+void ScanView::ctrlmod_disconnect()
+{
+    if (m_ctrlm.m_sckt->state() == QAbstractSocket::ConnectedState)
+    {
+        cprint("Closed connection with ctrlmod on " + m_ctrlm.m_sckt->peerAddress().toString() + ":" + QString::number(m_ctrlm.m_sckt->peerPort()));
+        m_ctrlm.m_sckt->disconnectFromHost();
+    }
+    else
+    {
+        cprint("No connection with ctrlmod to close");
+    }
+}
+
+void ScanView::ctrlmod_handle_byte(char byte)
+{
+    static hash_val curhash;
+    static byte_4 pckt_size;
+    static uint scanhashid = hash_id(complete_scan_data_packet::Type());
+    static uint plmessage = hash_id(pulsed_light_message::Type());
+    static uint navmessage = hash_id(nav_message::Type());
+
+    if (m_ctrlm.m_cur_index < 4)
+    {
+        curhash.data[m_ctrlm.m_cur_index] = byte;
+        ++m_ctrlm.m_cur_index;
+    }
+    else
+    {
+        std::unordered_map<uint,data_packet*>::iterator pcktIter = m_ctrlm.m_packets.find(curhash.hashval);
+        if (pcktIter == m_ctrlm.m_packets.end())
         {
 
             if (curhash.hashval == scanhashid)
             {
-                if (m_cur_index < 8)
-                    pckt_size.data[m_cur_index-4] = byte;
+                if (m_ctrlm.m_cur_index < 8)
+                    pckt_size.data[m_ctrlm.m_cur_index-4] = byte;
                 else
                 {
-                    uint b4index = (m_cur_index-8) / 4;
-                    uint subi = (m_cur_index-8) % 4;
+                    uint b4index = (m_ctrlm.m_cur_index-8) / 4;
+                    uint subi = (m_ctrlm.m_cur_index-8) % 4;
 
-                    m_scan[b4index].data[subi] = byte;
+                    m_ctrlm.m_scan[b4index].data[subi] = byte;
                 }
 
-                ++m_cur_index;
+                ++m_ctrlm.m_cur_index;
 
                 // If current index is 8 we have received first two unsigned ints..
                 // First unsigned int is 4 byte hash val which determines packet
                 // Second is 4 byte number indicating packet length
-                if (m_cur_index == 8)
-                    m_scan.resize(pckt_size.val); // I just reuse the "hashval" property as a size
+                if (m_ctrlm.m_cur_index == 8)
+                    m_ctrlm.m_scan.resize(pckt_size.val); // I just reuse the "hashval" property as a size
 
                 // scan is finished - mark it as such with current index etc
-                if ((m_cur_index-8) == m_scan.size()*4)
+                if (m_ctrlm.m_cur_index == 8 + m_ctrlm.m_scan.size()*4)
                 {
-                    _scan_received();
-                    m_cur_index = 0;
+                    ctrlmod_scan_received();
+                    m_ctrlm.m_cur_index = 0;
                     curhash.hashval = 0;
                     pckt_size.val = 0;
+                }
+                else if (m_ctrlm.m_cur_index > 8 + m_ctrlm.m_scan.size()*4)
+                {
+                    cprint("Received to much data for scan... error");
                 }
             }
             else if (curhash.hashval == plmessage)
             {
                 // Packet for pulsed light
-                m_cur_plmsg.data[m_cur_index-4] = byte;
-                ++m_cur_index;
-                if ((m_cur_index - 4) == m_cur_plmsg.size())
+                m_ctrlm.m_cur_plmsg.data[m_ctrlm.m_cur_index-4] = byte;
+                ++m_ctrlm.m_cur_index;
+                if (m_ctrlm.m_cur_index == 4 + m_ctrlm.m_cur_plmsg.size())
                 {
-                    _pl_received();
+                    ctrlmod_pl_received();
                     curhash.hashval = 0;
-                    m_cur_index = 0;
+                    m_ctrlm.m_cur_index = 0;
                     pckt_size.val = 0;
-                    m_cur_plmsg.zero();
+                    m_ctrlm.m_cur_plmsg.zero();
+                }
+                else if (m_ctrlm.m_cur_index > 4 + m_ctrlm.m_cur_plmsg.size())
+                {
+                    cprint("Received to much data for plmessage... error");
+                    m_ctrlm.m_cur_index = 0;
+                    curhash.hashval = 0;
+                    pckt_size.val = 0;
+                    m_ctrlm.m_cur_plmsg.zero();
                 }
             }
             else if (curhash.hashval == navmessage)
             {
                 // Packet for pulsed lm_rp_dock->ui->m_rplidar_pt->setPlainTextight
-                m_cur_navmsg.data[m_cur_index-4] = byte;
-                ++m_cur_index;
-                if ((m_cur_index - 4) == m_cur_navmsg.size())
+                m_ctrlm.m_cur_navmsg.data[m_ctrlm.m_cur_index-4] = byte;
+                ++m_ctrlm.m_cur_index;
+                if (m_ctrlm.m_cur_index == 4 + m_ctrlm.m_cur_navmsg.size())
                 {
-                    _nav_received();
+                    ctrlmod_nav_received();
                     curhash.hashval = 0;
-                    m_cur_index = 0;
+                    m_ctrlm.m_cur_index = 0;
                     pckt_size.val = 0;
-                    m_cur_navmsg.zero();
+                    m_ctrlm.m_cur_navmsg.zero();
+                }
+                else if (m_ctrlm.m_cur_index > 4 + m_ctrlm.m_cur_navmsg.size())
+                {
+                    cprint("Received to much data for nav message... error");
+//                    curhash.hashval = 0;
+//                    m_ctrlm.m_cur_index = 0;
+//                    pckt_size.val = 0;
+//                    m_ctrlm.m_cur_navmsg.zero();
                 }
             }
             else
             {
-                cprint("Missed packet");
+                cprint("Incomplete packet - resetting indexes");
                 curhash.hashval = 0;
-                m_cur_index = 0;
+                m_ctrlm.m_cur_index = 0;
                 pckt_size.val = 0;
+                m_ctrlm.m_cur_plmsg.zero();
+                m_ctrlm.m_cur_navmsg.zero();
+                m_ctrlm.m_scan.clear();
             }
         }
         else
         {
             // The received packet is one of the data packet types
-            (*pcktIter->second)[m_cur_index-4] = byte;
-            ++m_cur_index;
-            if ( (m_cur_index-4) == pcktIter->second->size())
+            (*pcktIter->second)[m_ctrlm.m_cur_index-4] = byte;
+            ++m_ctrlm.m_cur_index;
+            if ( (m_ctrlm.m_cur_index-4) == pcktIter->second->size())
             {
-                _pckt_received(pcktIter->second);
+                ctrlmod_pckt_received(pcktIter->second);
                 curhash.hashval = 0;
-                m_cur_index = 0;
+                m_ctrlm.m_cur_index = 0;
                 pckt_size.val = 0;
             }
         }
     }
 }
 
-void ScanView::_pckt_received(data_packet * pckt)
+void ScanView::ctrlmod_pckt_received(data_packet * pckt)
 {
     if (pckt->type() != complete_scan_data_packet::Type())
     {
@@ -621,10 +883,10 @@ void ScanView::_pckt_received(data_packet * pckt)
 
 }
 
-void ScanView::_scan_received()
+void ScanView::ctrlmod_scan_received()
 {
-    cprint("Received Scan: " + QString::number(m_scan.size()/2) + QString(" points"));
-    if (m_scan.size() % 2 != 0)
+    cprint("Received Scan: " + QString::number(m_ctrlm.m_scan.size()/2) + QString(" points"));
+    if (m_ctrlm.m_scan.size() % 2 != 0)
     {
         cprint("Invalid Scan");
         return;
@@ -641,10 +903,10 @@ void ScanView::_scan_received()
         if (dat == 13 || dat == 15 || dat == 14)
             ++itemIter;
 
-        if (count < m_scan.size()/2)
+        if (count < m_ctrlm.m_scan.size()/2)
         {
-            double angle = double(m_scan[count*2].val/64.0);
-            double distance = double(m_scan[count*2+1].val/4.0);
+            double angle = double(m_ctrlm.m_scan[count*2].val/64.0);
+            double distance = double(m_ctrlm.m_scan[count*2+1].val/4.0);
 
             double unit_vec_x = cos(angle * PI / 180.0 - PI/2);
             double unit_vec_y = sin(angle * PI / 180.0 - PI/2);
@@ -667,10 +929,10 @@ void ScanView::_scan_received()
     m_triangle->setPos(0,0);
 }
 
-void ScanView::_pl_received()
+void ScanView::ctrlmod_pl_received()
 {
-    m_ui->sensors->ui->m_ceiling_le->setText(QString::number(m_cur_plmsg.distance1 * 0.0328084) + " ft");
-    m_ui->sensors->ui->m_floor_le->setText(QString::number(m_cur_plmsg.distance2 * 0.0328084) + " ft");
+    m_ui->sensors->ui->m_ceiling_le->setText(QString::number(m_ctrlm.m_cur_plmsg.distance1 * 0.0328084) + " ft");
+    m_ui->sensors->ui->m_floor_le->setText(QString::number(m_ctrlm.m_cur_plmsg.distance2 * 0.0328084) + " ft");
 }
 
 void ScanView::on_actionPreferences_triggered()
@@ -681,13 +943,9 @@ void ScanView::on_actionPreferences_triggered()
     }
 }
 
-void ScanView::_nav_received()
+void ScanView::ctrlmod_nav_received()
 {
-    m_litem->setLine(0, 0, m_cur_navmsg.rvec_corrected[0], -m_cur_navmsg.rvec_corrected[1]);
-    cprint("Pitch: " + QString::number(m_cur_navmsg.pitch));
-    cprint("Roll: " + QString::number(m_cur_navmsg.roll));
-    cprint("Yaw: " + QString::number(m_cur_navmsg.yaw));
-    cprint("Throttle: " + QString::number(m_cur_navmsg.throttle));
+    m_litem->setLine(0, 0, m_ctrlm.m_cur_navmsg.rvec_corrected[0], -m_ctrlm.m_cur_navmsg.rvec_corrected[1]);
 }
 
 scan_data_packet::scan_data_packet()
